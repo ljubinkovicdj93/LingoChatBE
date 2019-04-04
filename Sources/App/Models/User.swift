@@ -13,11 +13,11 @@ final class User: Codable {
     var lastName: String
     var email: String
     var password: String
-    var friendCount: Int
+    var friendCount: Int?
     var username: String?
     var photoUrl: URL?
     
-    init(firstName: String, lastName: String, email: String, password: String, friendCount: Int = 0, username: String? = nil, photoUrl: URL? = nil) {
+    init(firstName: String, lastName: String, email: String, password: String, friendCount: Int? = nil, username: String? = nil, photoUrl: URL? = nil) {
         self.firstName = firstName
         self.lastName = lastName
         self.email = email
