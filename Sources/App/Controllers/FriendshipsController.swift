@@ -7,13 +7,21 @@ import Vapor
 import Fluent
 
 struct FriendshipsController: RouteCollection {
+    typealias T = User
+    
     func boot(router: Router) throws {
         let friendshipRoutes = router.grouped("api", "friendships")
         
-        friendshipRoutes.get(use: getAllFriendshipsHandler)
+        // Creates a sibling relationship between the user with <USER_ID> and the friend with <USER_ID>
+        friendshipRoutes.post(User.parameter, "befriend", User.parameter, use: addFriendHandler)
     }
     
-    func getAllFriendshipsHandler(_ req: Request) throws -> Future<[Friendship]> {
-        return Friendship.query(on: req).all()
+    // Relations
+    func addFriendHandler(_ req: Request) throws -> Future<HTTPStatus> {
+        return try flatMap(to: HTTPStatus.self,
+                           req.parameters.next(User.self),
+                           req.parameters.next(User.self)) { user, friend in
+                            return try FriendshipPivot(user, friend).save(on: req).transform(to: .created)
+        }
     }
 }

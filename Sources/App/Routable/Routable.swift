@@ -67,6 +67,16 @@ protocol Searchable: Routable {
     func searchHandler(_ req: Request) throws -> Future<[T]>
 }
 
+// Optional methods
+extension Searchable {
+    func searchHandler(_ req: Request) throws -> Future<[T]> { throw Abort(.notImplemented) }
+}
+
 protocol Sortable: Routable {
     func sortedHandler(_ req: Request) throws -> Future<[T]>
+}
+
+// Optional methods
+extension Sortable {
+    func sortedHandler(_ req: Request) throws -> Future<[T]> { throw Abort(.notImplemented) }
 }

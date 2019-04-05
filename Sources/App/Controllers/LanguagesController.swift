@@ -13,15 +13,38 @@ struct LanguagesController: RouteCollection {
         // Creatable
         languagesRoutes.post(Language.self, use: createHandler)
         
-        languagesRoutes.get(use: getAllLanguagesHandler)
+        // Retrievable
+        languagesRoutes.get(use: getAllHandler)
+        languagesRoutes.get(Language.parameter, use: getHandler)
+        languagesRoutes.get("first", use: getFirstHandler)
+        
+        // Updatable
+        languagesRoutes.put(Language.parameter, use: updateHandler)
+        
+        // Deletable
+        languagesRoutes.delete(Language.parameter, use: deleteHandler)
         
         // Searchable
         languagesRoutes.get("search", use: searchHandler)
+        
+        // Relations
+//        languagesRoutes.get(Language.parameter, "user", use: getUserHandler)
+//        languagesRoutes.get(Language.parameter, "messages", use: getMessagesHandler)
     }
     
-    func getAllLanguagesHandler(_ req: Request) throws -> Future<[Language]> {
-        return Language.query(on: req).all()
-    }
+//    func getUserHandler(_ req: Request) throws -> Future<User> {
+//        return try req.parameters.next(Language.self)
+//            .flatMap(to: User.self) { language in
+//                language.user.get(on: req)
+//        }
+//    }
+//
+//    func getMessagesHandler(_ req: Request) throws -> Future<[Message]> {
+//        return try req.parameters.next(Language.self)
+//            .flatMap(to: [Message].self) { language in
+//                try language.messages.query(on: req).all()
+//        }
+//    }
 }
 
 extension LanguagesController: CRUDRepresentable, Queryable {
@@ -34,6 +57,7 @@ extension LanguagesController: CRUDRepresentable, Queryable {
             req.content.decode(Language.self)
         ) { language, updatedLanguage in
             language.name = updatedLanguage.name
+            language.userID = updatedLanguage.userID
             return language.save(on: req)
         }
     }

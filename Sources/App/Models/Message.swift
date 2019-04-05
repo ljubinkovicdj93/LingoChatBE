@@ -16,21 +16,48 @@ enum MessageType: Int, Codable {
 }
 
 final class Message: Codable {
+    // MARK: - Primary key
     var id: UUID?
+    
+    // MARK: - Foreign keys
+    var userChatID: UserChatPivot.ID
+    var userLanguageID: UserLanguagePivot.ID
+    
+    // MARK: - Properties
     var messageText: String
-    var messageTimestamp: Date
     var messageType: MessageType
     var isTranslated: Bool
+    var translatedMessageText: String
+    var createdAt: Date
     
-    init(messageText: String, messageTimestamp: Date, messageType: MessageType, isTranslated: Bool) {
+    // MARK: - Initialization
+    init(messageText: String,
+         messageType: MessageType,
+         isTranslated: Bool,
+         translatedMessageText: String,
+         createdAt: Date,
+         userChatID: UserChatPivot.ID,
+         userLanguageID: UserLanguagePivot.ID) {
         self.messageText = messageText
-        self.messageTimestamp = messageTimestamp
         self.messageType = messageType
         self.isTranslated = isTranslated
+        self.translatedMessageText = translatedMessageText
+        self.createdAt = createdAt
+        
+        self.userLanguageID = userLanguageID
+        self.userChatID = userChatID
     }
 }
 
+// MARK: - Extensions
 extension Message: PostgreSQLUUIDModel {}
 extension Message: Content {}
 extension Message: Migration {}
 extension Message: Parameter {}
+
+// MARK: - Relations
+extension Message {
+//    var language: Parent<Message, Language> {
+//        return parent(\.languageID)
+//    }
+}
