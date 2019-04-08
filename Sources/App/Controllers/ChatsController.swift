@@ -23,9 +23,18 @@ struct ChatsController: RouteCollection {
         
         // Deletable
         chatsRoutes.delete(Message.parameter, use: deleteHandler)
+        
+        // Relational endpoints
+        // Language(s)
+        chatsRoutes.get(Chat.parameter, "language", use: getLanguageHandler)
+        
+        // User(s)
+        chatsRoutes.get(Chat.parameter, "creator", use: getCreatorUserHandler)
+        chatsRoutes.get(Chat.parameter, "users", use: getAllUsersHandler)
     }
 }
 
+// MARK: - CRUDRepresentable & Queryable
 extension ChatsController: CRUDRepresentable, Queryable {
     typealias T = Chat
     
@@ -41,6 +50,33 @@ extension ChatsController: CRUDRepresentable, Queryable {
             chat.createdAt = updatedChat.createdAt
             
             return chat.save(on: req)
+        }
+    }
+}
+
+// MARK: - Languages related methods
+extension ChatsController {
+    func getLanguageHandler(_ req: Request) throws -> Future<Language> {
+        return try req.parameters.next(Chat.self)
+            .flatMap(to: Language.self) { chat in
+                chat.languageUsedInChat.get(on: req)
+        }
+    }
+}
+
+// MARK: - Users related methods
+extension ChatsController {
+    func getCreatorUserHandler(_ req: Request) throws -> Future<User> {
+        return try req.parameters.next(Chat.self)
+            .flatMap(to: User.self) { chat in
+                chat.userWhoCreatedChat.get(on: req)
+        }
+    }
+    
+    func getAllUsersHandler(_ req: Request) throws -> Future<[User]> {
+        return try req.parameters.next(Chat.self)
+            .flatMap(to: [User].self) { chat in
+                try chat.users.query(on: req).all()
         }
     }
 }
