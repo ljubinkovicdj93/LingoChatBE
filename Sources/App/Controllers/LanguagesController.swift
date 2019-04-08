@@ -27,24 +27,13 @@ struct LanguagesController: RouteCollection {
         // Searchable
         languagesRoutes.get("search", use: searchHandler)
         
-        // Relations
-//        languagesRoutes.get(Language.parameter, "user", use: getUserHandler)
-//        languagesRoutes.get(Language.parameter, "messages", use: getMessagesHandler)
+        // Relational endpoints
+        // User(s)
+        languagesRoutes.get(Language.parameter, "users", use: getAllUsersHandler)
+        
+        // Chat(s)
+        languagesRoutes.get(Language.parameter, "chats", use: getAllChatsHandler)
     }
-    
-//    func getUserHandler(_ req: Request) throws -> Future<User> {
-//        return try req.parameters.next(Language.self)
-//            .flatMap(to: User.self) { language in
-//                language.user.get(on: req)
-//        }
-//    }
-//
-//    func getMessagesHandler(_ req: Request) throws -> Future<[Message]> {
-//        return try req.parameters.next(Language.self)
-//            .flatMap(to: [Message].self) { language in
-//                try language.messages.query(on: req).all()
-//        }
-//    }
 }
 
 extension LanguagesController: CRUDRepresentable, Queryable {
@@ -77,3 +66,22 @@ extension LanguagesController: CRUDRepresentable, Queryable {
     }
 }
 
+// MARK: - Users related methods
+extension LanguagesController {
+    func getAllUsersHandler(_ req: Request) throws -> Future<[User]> {
+        return try req.parameters.next(Language.self)
+            .flatMap(to: [User].self) { language in
+                try language.users.query(on: req).all()
+        }
+    }
+}
+
+// MARK: - Chats related methods
+extension LanguagesController {
+    func getAllChatsHandler(_ req: Request) throws -> Future<[Chat]> {
+        return try req.parameters.next(Language.self)
+            .flatMap(to: [Chat].self) { language in
+                try language.chats.query(on: req).all()
+        }
+    }
+}
