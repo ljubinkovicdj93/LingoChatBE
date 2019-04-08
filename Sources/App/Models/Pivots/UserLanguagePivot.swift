@@ -31,3 +31,10 @@ final class UserLanguagePivot: PostgreSQLUUIDPivot {
 extension UserLanguagePivot: Migration {}
 extension UserLanguagePivot: ModifiablePivot {}
 
+// MARK: Relations
+extension UserLanguagePivot {
+    /// All the messages written in this language.
+    var messages: Children<UserLanguagePivot, Message> {
+        return children(\.userLanguageID)
+    }
+}

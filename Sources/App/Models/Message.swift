@@ -55,9 +55,15 @@ extension Message: Content {}
 extension Message: Migration {}
 extension Message: Parameter {}
 
-// MARK: - Relations
+// MARK: Relations
 extension Message {
-//    var language: Parent<Message, Language> {
-//        return parent(\.languageID)
-//    }
+    /// Chat that has this message.
+    var chat: Parent<Message, UserChatPivot> {
+        return parent(\.userChatID)
+    }
+    
+    /// Language in which the message is written in.
+    var language: Parent<Message, UserLanguagePivot> {
+        return parent(\.userLanguageID)
+    }
 }

@@ -48,3 +48,10 @@ final class UserChatPivot: PostgreSQLUUIDPivot {
 extension UserChatPivot: Migration {}
 extension UserChatPivot: ModifiablePivot {}
 
+// MARK: Relations
+extension UserChatPivot {
+    var messages: Children<UserChatPivot, Message> {
+        return children(\.userChatID)
+    }
+}
+
