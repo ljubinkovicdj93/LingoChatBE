@@ -28,5 +28,7 @@ final class FriendshipPivot: PostgreSQLUUIDPivot {
 }
 
 // MARK: - Extensions
+extension FriendshipPivot: Content {}
+extension FriendshipPivot: Parameter {}
 extension FriendshipPivot: Migration {}
 extension FriendshipPivot: ModifiablePivot {}
