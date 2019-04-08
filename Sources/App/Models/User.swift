@@ -42,6 +42,10 @@ extension User: Parameter {}
 
 // Relations
 extension User {
+    var chatsCreatedByThisUser: Children<User, Chat> {
+        return children(\.createdByUserID)
+    }
+    
     var languages: Siblings<User, Language, UserLanguagePivot> {
         return siblings()
     }

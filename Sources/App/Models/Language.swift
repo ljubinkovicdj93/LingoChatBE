@@ -43,6 +43,12 @@ extension Language {
     var users: Siblings<Language, User, UserLanguagePivot> {
         return siblings()
     }
+    
+    /// Chats where this language is used.
+    var chats: Children<Language, Chat> {
+        return children(\.languageID)
+    }
+
 //    var user: Parent<Language, User> {
 //        return parent(\.userID)
 //    }

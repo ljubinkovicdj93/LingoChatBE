@@ -35,11 +35,28 @@ final class Chat: Codable {
 // MARK: - Extensions
 extension Chat: PostgreSQLUUIDModel {}
 extension Chat: Content {}
-extension Chat: Migration {}
+extension Chat: Migration {
+    // Foreign key constraints
+    static func prepare(on connection: PostgreSQLConnection) -> Future<Void> {
+        return Database.create(self, on: connection) { builder in
+            try addProperties(to: builder)
+            builder.reference(from: \.createdByUserID, to: \User.id)
+            builder.reference(from: \.languageID, to: \Language.id)
+        }
+    }
+}
 extension Chat: Parameter {}
 
 // Relations
 extension Chat {
+    var languageUsedInChat: Parent<Chat, Language> {
+        return parent(\.languageID)
+    }
+    
+    var userWhoCreatedChat: Parent<Chat, User> {
+        return parent(\.createdByUserID)
+    }
+    
     var users: Siblings<Chat, User, UserChatPivot> {
         return siblings()
     }

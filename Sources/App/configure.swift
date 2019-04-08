@@ -34,12 +34,14 @@ public func configure(_ config: inout Config, _ env: inout Environment, _ servic
     // Configure migrations, which tell the app which db to use for each model.
     var migrations = MigrationConfig()
     
-    // Because we are linking language's userID property to the User table
+    // Because we are linking language's and chat's userID property to the User table
     // User table MUST be created first!!!
     migrations.add(model: User.self, database: .psql)
     migrations.add(model: Language.self, database: .psql)
-    migrations.add(model: Message.self, database: .psql)
+    // Chat must be created after both the User and the Language table,
+    // since it cannot be created if either of the above don't exist.
     migrations.add(model: Chat.self, database: .psql)
+    migrations.add(model: Message.self, database: .psql)
 
     migrations.add(model: UserChatPivot.self, database: .psql)
     migrations.add(model: UserLanguagePivot.self, database: .psql)
