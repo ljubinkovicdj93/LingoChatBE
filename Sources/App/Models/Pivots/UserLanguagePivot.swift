@@ -37,4 +37,8 @@ extension UserLanguagePivot {
     var messages: Children<UserLanguagePivot, Message> {
         return children(\.userLanguageID)
     }
+    
+    var userChats: Children<UserLanguagePivot, UserChatPivot> {
+        return children(\.userLanguageID)
+    }
 }

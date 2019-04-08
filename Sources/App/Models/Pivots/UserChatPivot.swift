@@ -4,7 +4,7 @@
 // 
 
 import FluentPostgreSQL
-import Foundation
+import Vapor
 
 final class UserChatPivot: PostgreSQLUUIDPivot {
     // MARK: - Primary Key
@@ -32,8 +32,8 @@ final class UserChatPivot: PostgreSQLUUIDPivot {
     
     convenience init(user: User,
                      chat: Chat,
-                     userLanguageID: UserLanguagePivot.ID,
-                     createdAt: Date) throws {
+                     userLanguageID: UserLanguagePivot.ID?,
+                     createdAt: Date?) throws {
         do {
             try self.init(user, chat)
             self.userLanguageID = userLanguageID
@@ -45,6 +45,7 @@ final class UserChatPivot: PostgreSQLUUIDPivot {
 }
 
 // MARK: - Extensions
+extension UserChatPivot: Content {}
 extension UserChatPivot: Migration {}
 extension UserChatPivot: ModifiablePivot {}
 
@@ -52,6 +53,10 @@ extension UserChatPivot: ModifiablePivot {}
 extension UserChatPivot {
     var messages: Children<UserChatPivot, Message> {
         return children(\.userChatID)
+    }
+    
+    var language: Parent<UserChatPivot, UserLanguagePivot>? {
+        return parent(\.userLanguageID)
     }
 }
 
