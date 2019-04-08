@@ -24,18 +24,16 @@ struct MessagesController: RouteCollection {
         // Deletable
         messagesRoutes.delete(Message.parameter, use: deleteHandler)
         
-        // Relations
-//        messagesRoutes.get(Message.parameter, "language", use: getLanguageHandler)
+        // Relational endpoints
+        // Chat(s)
+        messagesRoutes.get(Message.parameter, "chat", use: getUserChatHandler)
+        
+        // Language(s)
+        messagesRoutes.get(Message.parameter, "language", use: getUserLanguageHandler)
     }
-    
-//    func getLanguageHandler(_ req: Request) throws -> Future<Language> {
-//        return try req.parameters.next(Message.self)
-//            .flatMap(to: Language.self) { message in
-//                message.language.get(on: req)
-//        }
-//    }
 }
 
+// MARK: - CRUDRepresentable & Queryable
 extension MessagesController: CRUDRepresentable, Queryable {
     typealias T = Message
     
@@ -54,6 +52,26 @@ extension MessagesController: CRUDRepresentable, Queryable {
             message.createdAt = updatedMessage.createdAt
             
             return message.save(on: req)
+        }
+    }
+}
+
+// MARK: - User Languages related methods
+extension MessagesController {
+    func getUserLanguageHandler(_ req: Request) throws -> Future<UserLanguagePivot> {
+        return try req.parameters.next(Message.self)
+            .flatMap(to: UserLanguagePivot.self) { message in
+                message.language.get(on: req)
+        }
+    }
+}
+
+// MARK: - User Chats related methods
+extension MessagesController {
+    func getUserChatHandler(_ req: Request) throws -> Future<UserChatPivot> {
+        return try req.parameters.next(Message.self)
+            .flatMap(to: UserChatPivot.self) { message in
+                message.chat.get(on: req)
         }
     }
 }

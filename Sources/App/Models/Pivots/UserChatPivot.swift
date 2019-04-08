@@ -46,6 +46,7 @@ final class UserChatPivot: PostgreSQLUUIDPivot {
 
 // MARK: - Extensions
 extension UserChatPivot: Content {}
+extension UserChatPivot: Parameter {}
 extension UserChatPivot: Migration {}
 extension UserChatPivot: ModifiablePivot {}
 

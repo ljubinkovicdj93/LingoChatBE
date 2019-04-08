@@ -4,7 +4,7 @@
 // 
 
 import FluentPostgreSQL
-import Foundation
+import Vapor
 
 final class UserLanguagePivot: PostgreSQLUUIDPivot {
     // MARK: - Primary Key
@@ -28,6 +28,7 @@ final class UserLanguagePivot: PostgreSQLUUIDPivot {
 }
 
 // MARK: - Extensions
+extension UserLanguagePivot: Content {}
 extension UserLanguagePivot: Migration {}
 extension UserLanguagePivot: ModifiablePivot {}
 
