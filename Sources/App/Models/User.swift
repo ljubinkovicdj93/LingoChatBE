@@ -34,6 +34,7 @@ final class User: Codable {
     }
 }
 
+// MARK: - Extensions
 extension User: PostgreSQLUUIDModel {}
 extension User: Content {}
 extension User: Migration {}
@@ -41,14 +42,13 @@ extension User: Parameter {}
 
 // Relations
 extension User {
-    // User can have (know) one or more languages.
-//    var languages: Children<User, Language> {
-//        return children(\.userID)
-//    }
+    var languages: Siblings<User, Language, UserLanguagePivot> {
+        return siblings()
+    }
     
-//    var groups: Siblings<User, Group, UserGroupPivot> {
-//        return siblings()
-//    }
+    var chats: Siblings<User, Chat, UserChatPivot> {
+        return siblings()
+    }
     
     // Friends of the user
     var friends: Siblings<User, User, FriendshipPivot> {

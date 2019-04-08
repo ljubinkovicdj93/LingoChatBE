@@ -40,6 +40,9 @@ extension Language: Parameter {}
 
 // MARK: - Relations
 extension Language {
+    var users: Siblings<Language, User, UserLanguagePivot> {
+        return siblings()
+    }
 //    var user: Parent<Language, User> {
 //        return parent(\.userID)
 //    }

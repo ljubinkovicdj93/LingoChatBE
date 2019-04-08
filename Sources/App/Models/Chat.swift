@@ -37,3 +37,10 @@ extension Chat: PostgreSQLUUIDModel {}
 extension Chat: Content {}
 extension Chat: Migration {}
 extension Chat: Parameter {}
+
+// Relations
+extension Chat {
+    var users: Siblings<Chat, User, UserChatPivot> {
+        return siblings()
+    }
+}
