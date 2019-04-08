@@ -24,56 +24,24 @@ struct UsersController: RouteCollection {
         // Deletable
         usersRoutes.delete(User.parameter, use: deleteHandler)
         
-        // Relations
-//        usersRoutes.get(User.parameter, "languages", use: getLanguagesHandler)
-//        // Creates a sibling relationship between the user with <USER_ID> and the group with <GROUP_ID>
-//        usersRoutes.post(User.parameter, "groups", Group.parameter, use: addGroupsHandler)
-//        usersRoutes.get(User.parameter, "groups", use: getGroupsHandler)
-//
-//        usersRoutes.get(User.parameter, "friends", use: getFriendsHandler)
-//        usersRoutes.get(User.parameter, "friendOf", use: getFriendOfHandler)
+        // Relational endpoints
+        // Chat(s)
+        usersRoutes.post(User.parameter, "chats", Chat.parameter, use: addChatsHandler)
+        usersRoutes.get(User.parameter, "chats", use: getAllChatsHandler)
+        usersRoutes.get(User.parameter, "chats-created", use: getChatsCreatedByUserHandler)
+        
+        // Language(s)
+        usersRoutes.post(User.parameter, "languages", Language.parameter, use: addLanguagesHandler)
+        usersRoutes.get(User.parameter, "languages", use: getAllLanguagesHandler)
+
+        // Friendship(s)
+        usersRoutes.post(User.parameter, "befriend", User.parameter, use: addFriendHandler)
+        usersRoutes.get(User.parameter, "friends", use: getFriendsHandler)
+        usersRoutes.get(User.parameter, "friendOf", use: getFriendOfHandler)
     }
-    
-//    func getLanguagesHandler(_ req: Request) throws -> Future<[Language]> {
-//        return try req.parameters.next(User.self)
-//            .flatMap(to: [Language].self) { user in
-//                try user.languages.query(on: req).all()
-//        }
-//    }
-//
-//    // Relations
-//    func addGroupsHandler(_ req: Request) throws -> Future<HTTPStatus> {
-//        return try flatMap(to: HTTPStatus.self,
-//                           req.parameters.next(User.self),
-//                           req.parameters.next(Group.self)) { user, group in
-//                            return user.groups
-//                                .attach(group, on: req)
-//                                .transform(to: .created)
-//        }
-//    }
-//
-//    func getGroupsHandler(_ req: Request) throws -> Future<[Group]> {
-//        return try req.parameters.next(User.self)
-//            .flatMap(to: [Group].self) { user in
-//                try user.groups.query(on: req).all()
-//            }
-//    }
-//
-//    func getFriendsHandler(_ req: Request) throws -> Future<[User]> {
-//        return try req.parameters.next(User.self)
-//            .flatMap(to: [User].self) { user in
-//                try user.friends.query(on: req).all()
-//        }
-//    }
-//
-//    func getFriendOfHandler(_ req: Request) throws -> Future<[User]> {
-//        return try req.parameters.next(User.self)
-//            .flatMap(to: [User].self) { user in
-//                try user.friendOf.query(on: req).all()
-//        }
-//    }
 }
 
+// MARK: - CRUDRepresentable & Queryable
 extension UsersController: CRUDRepresentable, Queryable {
     typealias T = User
     
@@ -92,6 +60,77 @@ extension UsersController: CRUDRepresentable, Queryable {
             user.friendCount = updatedUser.friendCount
             
             return user.save(on: req)
+        }
+    }
+}
+
+// MARK: - Chats related methods
+extension UsersController {
+    func getChatsCreatedByUserHandler(_ req: Request) throws -> Future<[Chat]> {
+        return try req.parameters.next(User.self)
+            .flatMap(to: [Chat].self) { user in
+                try user.chatsCreatedByThisUser.query(on: req).all()
+        }
+    }
+    
+    func getAllChatsHandler(_ req: Request) throws -> Future<[Chat]> {
+        return try req.parameters.next(User.self)
+            .flatMap(to: [Chat].self) { user in
+                try user.chats.query(on: req).all()
+        }
+    }
+    
+    func addChatsHandler(_ req: Request) throws -> Future<HTTPStatus> {
+        return try flatMap(to: HTTPStatus.self,
+                           req.parameters.next(User.self),
+                           req.parameters.next(Chat.self)) { user, chat in
+                            return user.chats
+                                .attach(chat, on: req)
+                                .transform(to: .created)
+        }
+    }
+}
+
+// MARK: - Languages related methods
+extension UsersController {
+    func addLanguagesHandler(_ req: Request) throws -> Future<HTTPStatus> {
+        return try flatMap(to: HTTPStatus.self,
+                           req.parameters.next(User.self),
+                           req.parameters.next(Language.self)) { user, language in
+                            return user.languages
+                                .attach(language, on: req)
+                                .transform(to: .created)
+        }
+    }
+    
+    func getAllLanguagesHandler(_ req: Request) throws -> Future<[Language]> {
+        return try req.parameters.next(User.self)
+            .flatMap(to: [Language].self) { user in
+                try user.languages.query(on: req).all()
+        }
+    }
+}
+
+extension UsersController {
+    func addFriendHandler(_ req: Request) throws -> Future<HTTPStatus> {
+        return try flatMap(to: HTTPStatus.self,
+                           req.parameters.next(User.self),
+                           req.parameters.next(User.self)) { user, friend in
+                            return try FriendshipPivot(user, friend).save(on: req).transform(to: .created)
+        }
+    }
+    
+    func getFriendsHandler(_ req: Request) throws -> Future<[User]> {
+        return try req.parameters.next(User.self)
+            .flatMap(to: [User].self) { user in
+                try user.friends.query(on: req).all()
+        }
+    }
+    
+    func getFriendOfHandler(_ req: Request) throws -> Future<[User]> {
+        return try req.parameters.next(User.self)
+            .flatMap(to: [User].self) { user in
+                try user.friendOf.query(on: req).all()
         }
     }
 }
