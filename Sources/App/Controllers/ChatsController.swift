@@ -5,6 +5,7 @@
 
 import Vapor
 import Fluent
+import Authentication
 
 struct ChatsController: RouteCollection {
     typealias T = Chat
@@ -12,9 +13,6 @@ struct ChatsController: RouteCollection {
     
     func boot(router: Router) throws {
         let chatsRoutes = router.grouped("api", "chats")
-        
-        // Creatable
-        chatsRoutes.post(Chat.self, use: createHandler)
         
         // Retrievable
         chatsRoutes.get(use: getAllHandler)
@@ -34,6 +32,13 @@ struct ChatsController: RouteCollection {
         // User(s)
         chatsRoutes.get(Chat.parameter, "creator", use: getCreatorUserHandler)
         chatsRoutes.get(Chat.parameter, "users", use: getAllUsersHandler)
+        
+        let basicAuthMiddleware = User.basicAuthMiddleware(using: BCryptDigest())
+        let guardAuthMiddleware = User.guardAuthMiddleware()
+        let protected = chatsRoutes.grouped(basicAuthMiddleware, guardAuthMiddleware)
+        // Creatable
+        // Only requests authenticated using HTTP authentication can create chats.
+        protected.post(Chat.self, use: createHandler)
     }
 }
 

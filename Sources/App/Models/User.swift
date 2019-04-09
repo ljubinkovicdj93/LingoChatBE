@@ -6,6 +6,7 @@
 import Foundation
 import FluentPostgreSQL
 import Vapor
+import Authentication
 
 final class User: Codable {
     var id: UUID?
@@ -63,6 +64,14 @@ final class User: Codable {
 }
 
 // MARK: - Extensions
+
+// MARK: - Authentication
+extension User: BasicAuthenticatable {
+    static var usernameKey: WritableKeyPath<User, String> = \User.email
+    static var passwordKey: WritableKeyPath<User, String> = \User.password
+}
+
+// MARK: - Database related
 extension User: PostgreSQLUUIDModel {}
 extension User: Content {}
 extension User: Migration {
