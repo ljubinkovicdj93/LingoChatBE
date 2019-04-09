@@ -13,19 +13,10 @@ struct MessagesController: RouteCollection {
     func boot(router: Router) throws {
         let messagesRoutes = router.grouped("api", "messages")
         
-        // Creatable
-        messagesRoutes.post(Message.self, use: createHandler)
-        
         // Retrievable
         messagesRoutes.get(use: getAllHandler)
         messagesRoutes.get(Message.parameter, use: getHandler)
         messagesRoutes.get("first", use: getFirstHandler)
-        
-        // Updatable
-        messagesRoutes.put(Message.parameter, use: updateHandler)
-        
-        // Deletable
-        messagesRoutes.delete(Message.parameter, use: deleteHandler)
         
         // Relational endpoints
         // Chat(s)
@@ -33,6 +24,16 @@ struct MessagesController: RouteCollection {
         
         // Language(s)
         messagesRoutes.get(Message.parameter, "language", use: getUserLanguageHandler)
+        
+        // Authentication Middleware
+        let tokenAuthMiddleware = User.tokenAuthMiddleware()
+        let guardAuthMiddleware = User.guardAuthMiddleware()
+        let tokenAuthGroup = messagesRoutes.grouped(tokenAuthMiddleware, guardAuthMiddleware)
+        
+        // Ensure only requests authenticated using HTTP token authentication can create, update, and delete messages.
+        tokenAuthGroup.post(Message.self, use: createHandler)
+        tokenAuthGroup.put(Message.parameter, use: updateHandler)
+        tokenAuthGroup.delete(Message.parameter, use: deleteHandler)
     }
 }
 

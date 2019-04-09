@@ -34,7 +34,6 @@ final class User: Codable {
         self.friendCount = friendCount
     }
     
-    
     /// Inner class to represent a public view of User.
     final class Public: Codable {
         var id: UUID?
@@ -131,4 +130,9 @@ extension User {
     var friendOf: Siblings<User, User, FriendshipPivot> {
         return siblings(FriendshipPivot.rightIDKey, FriendshipPivot.leftIDKey)
     }
+}
+
+// MARK: - Authentication
+extension User: TokenAuthenticatable {
+    typealias TokenType = Token
 }
