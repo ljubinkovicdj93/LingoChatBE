@@ -5,13 +5,14 @@
 
 import Vapor
 import Fluent
+import Crypto
 
 struct UsersController: RouteCollection {
+    typealias T = User
+    typealias U = User.Public
+
     func boot(router: Router) throws {
         let usersRoutes = router.grouped("api", "users")
-
-        // Creatable
-        usersRoutes.post(User.self, use: createHandler)
         
         // Retrievable
         usersRoutes.get(use: getAllHandler)
@@ -38,16 +39,52 @@ struct UsersController: RouteCollection {
         usersRoutes.post(User.parameter, "befriend", User.parameter, use: addFriendHandler)
         usersRoutes.get(User.parameter, "friends", use: getFriendsHandler)
         usersRoutes.get(User.parameter, "friendOf", use: getFriendOfHandler)
+        
+        // Authentication Middleware
+        let basicAuthMiddleware = User.basicAuthMiddleware(using: BCryptDigest())
+        let basicAuthGroup = usersRoutes.grouped(basicAuthMiddleware)
+        basicAuthGroup.post("login", use: loginHandler)
+        
+        #warning("Need this ???")
+        // Only authenticated users can create other users.
+        let tokenAuthMiddleware = User.tokenAuthMiddleware()
+        let guardAuthMiddleware = User.guardAuthMiddleware()
+        let tokenAuthGroup = usersRoutes.grouped(tokenAuthMiddleware, guardAuthMiddleware)
+        tokenAuthGroup.post(User.self, use: createHandler)
     }
 }
 
-// MARK: - CRUDRepresentable & Queryable
-extension UsersController: CRUDRepresentable, Queryable {
-    typealias T = User
+// MARK: - Creatable
+extension UsersController: Creatable {
+    func createHandler(_ req: Request, model: User) throws -> Future<User.Public> {
+        model.password = try BCrypt.hash(model.password)
+        return model.save(on: req).convertToPublic()
+    }
+}
+
+// MARK: - Retrievable
+extension UsersController: Retrievable {
+    func getAllHandler(_ req: Request) throws -> Future<[User.Public]> {
+        return User.query(on: req).decode(data: User.Public.self).all()
+    }
     
-    func updateHandler(_ req: Request) throws -> Future<User> {
+    func getHandler(_ req: Request) throws -> Future<User.Public> {
+        return try req.parameters.next(User.self).convertToPublic()
+    }
+    
+    func getFirstHandler(_ req: Request) throws -> Future<User.Public> {
+        return User.query(on: req)
+            .decode(data: User.Public.self)
+            .first()
+            .unwrap(or: Abort(.notFound))
+    }
+}
+
+// MARK: - Updatable
+extension UsersController: Updatable {
+    func updateHandler(_ req: Request) throws -> Future<User.Public> {
         return try flatMap(
-            to: User.self,
+            to: User.Public.self,
             req.parameters.next(User.self),
             req.content.decode(User.self)
         ) { user, updatedUser in
@@ -59,8 +96,23 @@ extension UsersController: CRUDRepresentable, Queryable {
             user.photoUrl = updatedUser.photoUrl
             user.friendCount = updatedUser.friendCount
             
-            return user.save(on: req)
+            return user.save(on: req).convertToPublic()
         }
+    }
+}
+
+// MARK: - Deletable
+extension UsersController: Deletable {}
+
+// MARK: - Queryable
+extension UsersController: Queryable {}
+
+// MARK: - Login related methods
+extension UsersController {
+    func loginHandler(_ req: Request) throws -> Future<Token> {
+        let user = try req.requireAuthenticated(User.self) // saves the user's identity in the request's authentication cache, making it easy to retrieve the user object later.
+        let token = try Token.generate(for: user)
+        return token.save(on: req)
     }
 }
 
