@@ -30,5 +30,14 @@ final class FriendshipPivot: PostgreSQLUUIDPivot {
 // MARK: - Extensions
 extension FriendshipPivot: Content {}
 extension FriendshipPivot: Parameter {}
-extension FriendshipPivot: Migration {}
+extension FriendshipPivot: Migration {
+    static func prepare(on connection: PostgreSQLConnection) -> Future<Void> {
+        return Database.create(self, on: connection) { builder in
+            try addProperties(to: builder)
+            
+            builder.reference(from: \.userID, to: \User.id, onDelete: .cascade)
+            builder.reference(from: \.friendID, to: \User.id, onDelete: .cascade)
+        }
+    }
+}
 extension FriendshipPivot: ModifiablePivot {}

@@ -47,7 +47,16 @@ final class UserChatPivot: PostgreSQLUUIDPivot {
 // MARK: - Extensions
 extension UserChatPivot: Content {}
 extension UserChatPivot: Parameter {}
-extension UserChatPivot: Migration {}
+extension UserChatPivot: Migration {
+    static func prepare(on connection: PostgreSQLConnection) -> Future<Void> {
+        return Database.create(self, on: connection) { builder in
+            try addProperties(to: builder)
+            
+            builder.reference(from: \.userID, to: \User.id, onDelete: .cascade)
+            builder.reference(from: \.chatID, to: \Chat.id, onDelete: .cascade)
+        }
+    }
+}
 extension UserChatPivot: ModifiablePivot {}
 
 // MARK: Relations

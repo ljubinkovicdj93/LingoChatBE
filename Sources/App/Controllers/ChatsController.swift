@@ -15,14 +15,14 @@ struct ChatsController: RouteCollection {
         
         // Retrievable
         chatsRoutes.get(use: getAllHandler)
-        chatsRoutes.get(Message.parameter, use: getHandler)
+        chatsRoutes.get(Chat.parameter, use: getHandler)
         chatsRoutes.get("first", use: getFirstHandler)
         
         // Updatable
-        chatsRoutes.put(Message.parameter, use: updateHandler)
+        chatsRoutes.put(Chat.parameter, use: updateHandler)
         
         // Deletable
-        chatsRoutes.delete(Message.parameter, use: deleteHandler)
+        chatsRoutes.delete(Chat.parameter, use: deleteHandler)
         
         // Relational endpoints
         // Language(s)

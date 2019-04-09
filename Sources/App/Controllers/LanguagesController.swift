@@ -27,6 +27,9 @@ struct LanguagesController: RouteCollection {
         // Searchable
         languagesRoutes.get("search", use: searchHandler)
         
+        // Sortable
+        languagesRoutes.get("sorted", use: sortedHandler)
+        
         // Relational endpoints
         // User(s)
         languagesRoutes.get(Language.parameter, "users", use: getAllUsersHandler)

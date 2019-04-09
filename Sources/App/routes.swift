@@ -17,4 +17,7 @@ public func routes(_ router: Router) throws {
     
     let friendshipsController = FriendshipsController()
     try router.register(collection: friendshipsController)
+    
+    let userChatsController = UserChatsController()
+    try router.register(collection: userChatsController)
 }
