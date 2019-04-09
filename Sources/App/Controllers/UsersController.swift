@@ -44,6 +44,13 @@ struct UsersController: RouteCollection {
         let basicAuthMiddleware = User.basicAuthMiddleware(using: BCryptDigest())
         let basicAuthGroup = usersRoutes.grouped(basicAuthMiddleware)
         basicAuthGroup.post("login", use: loginHandler)
+        
+        #warning("Need this ???")
+        // Only authenticated users can create other users.
+        let tokenAuthMiddleware = User.tokenAuthMiddleware()
+        let guardAuthMiddleware = User.guardAuthMiddleware()
+        let tokenAuthGroup = usersRoutes.grouped(tokenAuthMiddleware, guardAuthMiddleware)
+        tokenAuthGroup.post(User.self, use: createHandler)
     }
 }
 

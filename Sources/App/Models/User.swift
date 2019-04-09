@@ -136,3 +136,28 @@ extension User {
 extension User: TokenAuthenticatable {
     typealias TokenType = Token
 }
+
+// MARK: - Database Seeding
+struct AdminUser: Migration {
+    typealias Database = PostgreSQLDatabase
+    
+    static func prepare(on conn: PostgreSQLConnection) -> EventLoopFuture<Void> {
+        let password = try? BCrypt.hash("password")
+        guard let hashedPassword = password else {
+            fatalError("Failed to create the admin user!")
+        }
+        
+        let user = User(
+            firstName: "Admin",
+            lastName: "User",
+            email: "admin@test.com",
+            username: "admin-user",
+            password: hashedPassword
+        )
+        return user.save(on: conn).transform(to: ())
+    }
+    
+    static func revert(on conn: PostgreSQLConnection) -> EventLoopFuture<Void> {
+        return .done(on: conn)
+    }
+}
