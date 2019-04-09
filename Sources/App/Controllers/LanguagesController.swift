@@ -7,6 +7,9 @@ import Vapor
 import Fluent
 
 struct LanguagesController: RouteCollection {
+    typealias T = Language
+    typealias U = Language
+    
     func boot(router: Router) throws {
         let languagesRoutes = router.grouped("api", "languages")
         
@@ -40,8 +43,6 @@ struct LanguagesController: RouteCollection {
 }
 
 extension LanguagesController: CRUDRepresentable, Queryable {
-    typealias T = Language
-    
     func updateHandler(_ req: Request) throws -> Future<Language> {
         return try flatMap(
             to: Language.self,
@@ -71,10 +72,10 @@ extension LanguagesController: CRUDRepresentable, Queryable {
 
 // MARK: - Users related methods
 extension LanguagesController {
-    func getAllUsersHandler(_ req: Request) throws -> Future<[User]> {
+    func getAllUsersHandler(_ req: Request) throws -> Future<[User.Public]> {
         return try req.parameters.next(Language.self)
-            .flatMap(to: [User].self) { language in
-                try language.users.query(on: req).all()
+            .flatMap(to: [User.Public].self) { language in
+                try language.users.query(on: req).decode(data: User.Public.self).all()
         }
     }
 }

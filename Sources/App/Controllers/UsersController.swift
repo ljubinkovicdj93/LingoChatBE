@@ -5,8 +5,12 @@
 
 import Vapor
 import Fluent
+import Crypto
 
 struct UsersController: RouteCollection {
+    typealias T = User
+    typealias U = User.Public
+
     func boot(router: Router) throws {
         let usersRoutes = router.grouped("api", "users")
 
@@ -41,13 +45,37 @@ struct UsersController: RouteCollection {
     }
 }
 
-// MARK: - CRUDRepresentable & Queryable
-extension UsersController: CRUDRepresentable, Queryable {
-    typealias T = User
+// MARK: - Creatable
+extension UsersController: Creatable {
+    func createHandler(_ req: Request, model: User) throws -> Future<User.Public> {
+        model.password = try BCrypt.hash(model.password)
+        return model.save(on: req).convertToPublic()
+    }
+}
+
+// MARK: - Retrievable
+extension UsersController: Retrievable {
+    func getAllHandler(_ req: Request) throws -> Future<[User.Public]> {
+        return User.query(on: req).decode(data: User.Public.self).all()
+    }
     
-    func updateHandler(_ req: Request) throws -> Future<User> {
+    func getHandler(_ req: Request) throws -> Future<User.Public> {
+        return try req.parameters.next(User.self).convertToPublic()
+    }
+    
+    func getFirstHandler(_ req: Request) throws -> Future<User.Public> {
+        return User.query(on: req)
+            .decode(data: User.Public.self)
+            .first()
+            .unwrap(or: Abort(.notFound))
+    }
+}
+
+// MARK: - Updatable
+extension UsersController: Updatable {
+    func updateHandler(_ req: Request) throws -> Future<User.Public> {
         return try flatMap(
-            to: User.self,
+            to: User.Public.self,
             req.parameters.next(User.self),
             req.content.decode(User.self)
         ) { user, updatedUser in
@@ -59,10 +87,16 @@ extension UsersController: CRUDRepresentable, Queryable {
             user.photoUrl = updatedUser.photoUrl
             user.friendCount = updatedUser.friendCount
             
-            return user.save(on: req)
+            return user.save(on: req).convertToPublic()
         }
     }
 }
+
+// MARK: - Deletable
+extension UsersController: Deletable {}
+
+// MARK: - Queryable
+extension UsersController: Queryable {}
 
 // MARK: - Chats related methods
 extension UsersController {

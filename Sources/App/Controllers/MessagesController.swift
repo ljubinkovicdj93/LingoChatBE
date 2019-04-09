@@ -7,6 +7,9 @@ import Vapor
 import Fluent
 
 struct MessagesController: RouteCollection {
+    typealias T = Message
+    typealias U = Message
+    
     func boot(router: Router) throws {
         let messagesRoutes = router.grouped("api", "messages")
         
@@ -35,8 +38,6 @@ struct MessagesController: RouteCollection {
 
 // MARK: - CRUDRepresentable & Queryable
 extension MessagesController: CRUDRepresentable, Queryable {
-    typealias T = Message
-    
     func updateHandler(_ req: Request) throws -> Future<Message> {
         return try flatMap(
             to: Message.self,

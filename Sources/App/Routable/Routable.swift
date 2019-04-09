@@ -11,34 +11,35 @@ typealias Queryable = Searchable & Sortable
 
 protocol Routable {
     associatedtype T where T: Content & Model & Parameter, T.ResolvedParameter == Future<T>
+    associatedtype U where U: Content
 }
 
 protocol Creatable: Routable {
-    func createHandler(_ req: Request, type: T) throws -> Future<T>
+    func createHandler(_ req: Request, model: T) throws -> Future<U>
 }
 
-extension Creatable {
-    func createHandler(_ req: Request, type: T) throws -> Future<T> {
-        return type.save(on: req)
+extension Creatable where T == U {
+    func createHandler(_ req: Request, model: T) throws -> Future<U> {
+        return model.save(on: req)
     }
 }
 
 protocol Retrievable: Routable {
-    func getAllHandler(_ req: Request) throws -> Future<[T]>
-    func getHandler(_ req: Request) throws -> Future<T>
-    func getFirstHandler(_ req: Request) throws -> Future<T>
+    func getAllHandler(_ req: Request) throws -> Future<[U]>
+    func getHandler(_ req: Request) throws -> Future<U>
+    func getFirstHandler(_ req: Request) throws -> Future<U>
 }
 
-extension Retrievable {
-    func getAllHandler(_ req: Request) throws -> Future<[T]> {
+extension Retrievable where T == U {
+    func getAllHandler(_ req: Request) throws -> Future<[U]> {
         return T.query(on: req).all()
     }
     
-    func getHandler(_ req: Request) throws -> Future<T> {
+    func getHandler(_ req: Request) throws -> Future<U> {
         return try req.parameters.next(T.self)
     }
     
-    func getFirstHandler(_ req: Request) throws -> Future<T> {
+    func getFirstHandler(_ req: Request) throws -> Future<U> {
         return T.query(on: req)
             .first()
             .unwrap(or: Abort(.notFound))
@@ -46,7 +47,7 @@ extension Retrievable {
 }
 
 protocol Updatable: Routable {
-    func updateHandler(_ req: Request) throws -> Future<T>
+    func updateHandler(_ req: Request) throws -> Future<U>
 }
 
 protocol Deletable: Routable {
@@ -64,19 +65,19 @@ extension Deletable {
 }
 
 protocol Searchable: Routable {
-    func searchHandler(_ req: Request) throws -> Future<[T]>
+    func searchHandler(_ req: Request) throws -> Future<[U]>
 }
 
 // Optional methods
 extension Searchable {
-    func searchHandler(_ req: Request) throws -> Future<[T]> { throw Abort(.notImplemented) }
+    func searchHandler(_ req: Request) throws -> Future<[U]> { throw Abort(.notImplemented) }
 }
 
 protocol Sortable: Routable {
-    func sortedHandler(_ req: Request) throws -> Future<[T]>
+    func sortedHandler(_ req: Request) throws -> Future<[U]>
 }
 
 // Optional methods
 extension Sortable {
-    func sortedHandler(_ req: Request) throws -> Future<[T]> { throw Abort(.notImplemented) }
+    func sortedHandler(_ req: Request) throws -> Future<[U]> { throw Abort(.notImplemented) }
 }

@@ -7,6 +7,9 @@ import Vapor
 import Fluent
 
 struct ChatsController: RouteCollection {
+    typealias T = Chat
+    typealias U = Chat
+    
     func boot(router: Router) throws {
         let chatsRoutes = router.grouped("api", "chats")
         
@@ -36,8 +39,6 @@ struct ChatsController: RouteCollection {
 
 // MARK: - CRUDRepresentable & Queryable
 extension ChatsController: CRUDRepresentable, Queryable {
-    typealias T = Chat
-    
     func updateHandler(_ req: Request) throws -> Future<Chat> {
         return try flatMap(
             to: Chat.self,
@@ -66,17 +67,17 @@ extension ChatsController {
 
 // MARK: - Users related methods
 extension ChatsController {
-    func getCreatorUserHandler(_ req: Request) throws -> Future<User> {
+    func getCreatorUserHandler(_ req: Request) throws -> Future<User.Public> {
         return try req.parameters.next(Chat.self)
-            .flatMap(to: User.self) { chat in
-                chat.userWhoCreatedChat.get(on: req)
+            .flatMap(to: User.Public.self) { chat in
+                chat.userWhoCreatedChat.get(on: req).convertToPublic()
         }
     }
     
-    func getAllUsersHandler(_ req: Request) throws -> Future<[User]> {
+    func getAllUsersHandler(_ req: Request) throws -> Future<[User.Public]> {
         return try req.parameters.next(Chat.self)
-            .flatMap(to: [User].self) { chat in
-                try chat.users.query(on: req).all()
+            .flatMap(to: [User.Public].self) { chat in
+                try chat.users.query(on: req).decode(data: User.Public.self).all()
         }
     }
 }

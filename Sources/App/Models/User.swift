@@ -14,7 +14,7 @@ final class User: Codable {
     var email: String
     var username: String?
     var password: String
-    var photoUrl: URL?
+    var photoUrl: String?
     var friendCount: Int?
     
     init(firstName: String,
@@ -22,7 +22,7 @@ final class User: Codable {
          email: String,
          username: String? = nil,
          password: String,
-         photoUrl: URL? = nil,
+         photoUrl: String? = nil,
          friendCount: Int? = nil) {
         self.firstName = firstName
         self.lastName = lastName
@@ -32,15 +32,74 @@ final class User: Codable {
         self.photoUrl = photoUrl
         self.friendCount = friendCount
     }
+    
+    
+    /// Inner class to represent a public view of User.
+    final class Public: Codable {
+        var id: UUID?
+        var firstName: String
+        var lastName: String
+        var email: String
+        var username: String?
+        var photoUrl: String?
+        var friendCount: Int?
+        
+        init(id: UUID?,
+             firstName: String,
+             lastName: String,
+             email: String,
+             username: String? = nil,
+             photoUrl: String? = nil,
+             friendCount: Int? = nil) {
+            self.id = id
+            self.firstName = firstName
+            self.lastName = lastName
+            self.email = email
+            self.username = username
+            self.photoUrl = photoUrl
+            self.friendCount = friendCount
+        }
+    }
 }
 
 // MARK: - Extensions
 extension User: PostgreSQLUUIDModel {}
 extension User: Content {}
-extension User: Migration {}
+extension User: Migration {
+    static func prepare(on connection: PostgreSQLConnection) -> Future<Void> {
+        return Database.create(self, on: connection) { builder in
+            try addProperties(to: builder)
+            builder.unique(on: \.email)
+            builder.unique(on: \.username)
+        }
+    }
+}
 extension User: Parameter {}
 
-// Relations
+// MARK: - Public User View
+extension User.Public: Content {} // Allows displaying public view in responses.
+
+extension User {
+    func convertToPublic() -> User.Public {
+        return User.Public(id: id,
+                           firstName: firstName,
+                           lastName: lastName,
+                           email: email,
+                           username: username,
+                           photoUrl: photoUrl,
+                           friendCount: friendCount)
+    }
+}
+
+extension Future where T: User {
+    func convertToPublic() -> Future<User.Public> {
+        return self.map(to: User.Public.self) { user in
+            return user.convertToPublic()
+        }
+    }
+}
+
+// MARK: - Relations
 extension User {
     var chatsCreatedByThisUser: Children<User, Chat> {
         return children(\.createdByUserID)
