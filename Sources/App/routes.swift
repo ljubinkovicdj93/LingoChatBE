@@ -1,20 +1,23 @@
 import Vapor
+import Fluent
 
 /// Register your application's routes here.
 public func routes(_ router: Router) throws {
-    // Basic "It works" example
-    router.get { req in
-        return "It works!"
-    }
+    let usersController = UsersController()
+    try router.register(collection: usersController)
     
-    // Basic "Hello, world!" example
-    router.get("hello") { req in
-        return "Hello, world!"
-    }
+    let languagesController = LanguagesController()
+    try router.register(collection: languagesController)
+    
+    let messagesController = MessagesController()
+    try router.register(collection: messagesController)
 
-    // Example of configuring a controller
-    let todoController = TodoController()
-    router.get("todos", use: todoController.index)
-    router.post("todos", use: todoController.create)
-    router.delete("todos", Todo.parameter, use: todoController.delete)
+    let chatsController = ChatsController()
+    try router.register(collection: chatsController)
+    
+    let friendshipsController = FriendshipsController()
+    try router.register(collection: friendshipsController)
+    
+    let userChatsController = UserChatsController()
+    try router.register(collection: userChatsController)
 }
