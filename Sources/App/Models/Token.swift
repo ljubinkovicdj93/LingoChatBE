@@ -46,7 +46,7 @@ extension Token {
 //                         userID: user.requireID())
         
         let publicUser = user.createPublicUser()
-        print("publicUser.id:", publicUser.id)
+        print("publicUser.id:", publicUser.id?.uuidString)
         
         // Create JWT and sign
         let data = try JWT(payload: publicUser).sign(using: .hs256(key: "secret"))
