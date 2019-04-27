@@ -3,6 +3,7 @@
 // Created on Thursday, April 04, 2019.
 // 
 
+import JWT
 import Vapor
 import Fluent
 import Crypto

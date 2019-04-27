@@ -7,6 +7,7 @@ import Foundation
 import FluentPostgreSQL
 import Vapor
 import Authentication
+import JWT
 
 final class User: Codable {
     var id: UUID?
@@ -32,6 +33,16 @@ final class User: Codable {
         self.password = password
         self.photoUrl = photoUrl
         self.friendCount = friendCount
+    }
+    
+    func createPublicUser() -> User.Public {
+        return User.Public(id: self.id,
+                           firstName: self.firstName,
+                           lastName: self.lastName,
+                           email: self.email,
+                           username: self.username,
+                           photoUrl: self.photoUrl,
+                           friendCount: self.friendCount)
     }
     
     /// Inner class to represent a public view of User.
@@ -63,6 +74,13 @@ final class User: Codable {
 }
 
 // MARK: - Extensions
+
+// MARK: - JWTPayload
+extension User.Public: JWTPayload {
+    func verify(using signer: JWTSigner) throws {
+        // TODO: - Doesn't include any claims, so leave empty for now. Re-implement.
+    }
+}
 
 // MARK: - Authentication
 extension User: BasicAuthenticatable {
