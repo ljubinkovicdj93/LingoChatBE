@@ -28,6 +28,7 @@ final class UserLanguagePivot: PostgreSQLUUIDPivot {
 }
 
 // MARK: - Extensions
+extension UserLanguagePivot: Parameter {}
 extension UserLanguagePivot: Content {}
 extension UserLanguagePivot: Migration {
     static func prepare(on connection: PostgreSQLConnection) -> Future<Void> {

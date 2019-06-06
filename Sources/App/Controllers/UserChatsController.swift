@@ -11,8 +11,17 @@ struct UserChatsController: RouteCollection {
         let userChatsRoutes = router.grouped("api", "user-chats")
         
         userChatsRoutes.get(use: getAllUserChatsHandler)
+        userChatsRoutes.get(UserChatPivot.parameter, "messages", use: getAllMessagesHandler)
         
         userChatsRoutes.delete(UserChatPivot.parameter, use: deleteFriendshipHandler)
+    }
+    
+    func getAllMessagesHandler(_ req: Request) throws -> Future<[Message]> {
+        return try req
+            .parameters.next(UserChatPivot.self)
+            .flatMap(to: [Message].self) { ulp in
+                return try ulp.messages.query(on: req).all()
+        }
     }
     
     func getAllUserChatsHandler(_ req: Request) throws -> Future<[UserChatPivot]> {
@@ -27,4 +36,3 @@ struct UserChatsController: RouteCollection {
             .transform(to: .noContent)
     }
 }
-

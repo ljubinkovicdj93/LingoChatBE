@@ -128,13 +128,20 @@ extension UsersController {
         }
     }
     
-    func addChatsHandler(_ req: Request) throws -> Future<HTTPStatus> {
-        return try flatMap(to: HTTPStatus.self,
+    func addChatsHandler(_ req: Request) throws -> Future<Response> {
+//        return try flatMap(to: HTTPStatus.self,
+		return try flatMap(to: Response.self,
                            req.parameters.next(User.self),
                            req.parameters.next(Chat.self)) { user, chat in
-                            return user.chats
-                                .attach(chat, on: req)
-                                .transform(to: .created)
+							
+							let pivot = try UserChatPivot(user, chat)
+							return pivot
+									.save(on: req)
+									.withStatus(.created, using: req)
+
+//                            return user.chats
+//                                .attach(chat, on: req)
+//                                .transform(to: .created)
         }
     }
 }
