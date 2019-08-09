@@ -28,11 +28,14 @@ final class UserLanguagePivot: PostgreSQLUUIDPivot {
 }
 
 // MARK: - Extensions
+extension UserLanguagePivot: Parameter {}
 extension UserLanguagePivot: Content {}
 extension UserLanguagePivot: Migration {
     static func prepare(on connection: PostgreSQLConnection) -> Future<Void> {
         return Database.create(self, on: connection) { builder in
             try addProperties(to: builder)
+            
+            builder.unique(on: \.languageID, \.userID)
             
             builder.reference(from: \.userID, to: \User.id, onDelete: .cascade)
             builder.reference(from: \.languageID, to: \Language.id, onDelete: .cascade)

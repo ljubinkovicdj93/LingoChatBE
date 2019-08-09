@@ -4,6 +4,7 @@
 // 
 
 import Foundation
+import JWT
 import Vapor
 import FluentPostgreSQL
 import Authentication
@@ -40,8 +41,26 @@ extension Token {
     ///   - byteCount: Number of bytes used to act as a Token.
     /// - Returns: Token with the base64-encoded representation of the random bytes and the user's ID.
     static func generate(for user: User, byteCount: Int = 16) throws -> Token {
-        let random = try CryptoRandom().generateData(count: byteCount)
-        return try Token(token: random.base64EncodedString(),
+//        let random = try CryptoRandom().generateData(count: byteCount)
+//        return try Token(token: random.base64EncodedString(),
+//                         userID: user.requireID())
+        
+        let publicUser = user.createPublicUser()
+								.set(iat: Date())
+        
+        publicUser.set(iss: publicUser.fullName)
+        
+        let expirationDate = Date().addDays(60)
+        publicUser.set(exp: expirationDate)
+
+        // Create JWT and sign
+        let data = try JWT(payload: publicUser).sign(using: .hs256(key: "secret"))
+     
+        guard let jwtString = String(data: data, encoding: .utf8) else {
+            fatalError("Could not generate JWT string!")
+        }
+        
+        return try Token(token: jwtString,
                          userID: user.requireID())
     }
 }

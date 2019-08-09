@@ -3,6 +3,7 @@
 // Created on Thursday, April 04, 2019.
 // 
 
+import JWT
 import Vapor
 import Fluent
 import Crypto
@@ -13,9 +14,9 @@ struct UsersController: RouteCollection {
 
     func boot(router: Router) throws {
         let usersRoutes = router.grouped("api", "users")
-        
-        // Creatable
-        usersRoutes.post(User.self, use: createHandler)
+
+        // Register
+        usersRoutes.post(User.self, at: "register", use: registerHandler)
         
         // Retrievable
         usersRoutes.get(use: getAllHandler)
@@ -48,13 +49,21 @@ struct UsersController: RouteCollection {
         let basicAuthGroup = usersRoutes.grouped(basicAuthMiddleware)
         basicAuthGroup.post("login", use: loginHandler)
     }
-}
-
-// MARK: - Creatable
-extension UsersController: Creatable {
-    func createHandler(_ req: Request, model: User) throws -> Future<User.Public> {
-        model.password = try BCrypt.hash(model.password)
-        return model.save(on: req).convertToPublic()
+    
+    private func registerHandler(_ req: Request, user: User) throws -> Future<Token> {
+        user.password = try BCrypt.hash(user.password)
+        
+        return user.save(on: req)
+            .flatMap(to: Token.self, { user -> Future<Token> in
+                let token = try Token.generate(for: user)
+                return token.save(on: req)
+            })
+    }
+    
+    private func loginHandler(_ req: Request) throws -> Future<Token> {
+        let user = try req.requireAuthenticated(User.self) // saves the user's identity in the request's authentication cache, making it easy to retrieve the user object later.
+        let token = try Token.generate(for: user)
+        return token.save(on: req)
     }
 }
 
@@ -103,15 +112,6 @@ extension UsersController: Deletable {}
 // MARK: - Queryable
 extension UsersController: Queryable {}
 
-// MARK: - Login related methods
-extension UsersController {
-    func loginHandler(_ req: Request) throws -> Future<Token> {
-        let user = try req.requireAuthenticated(User.self) // saves the user's identity in the request's authentication cache, making it easy to retrieve the user object later.
-        let token = try Token.generate(for: user)
-        return token.save(on: req)
-    }
-}
-
 // MARK: - Chats related methods
 extension UsersController {
     func getChatsCreatedByUserHandler(_ req: Request) throws -> Future<[Chat]> {
@@ -128,26 +128,31 @@ extension UsersController {
         }
     }
     
-    func addChatsHandler(_ req: Request) throws -> Future<HTTPStatus> {
-        return try flatMap(to: HTTPStatus.self,
+    func addChatsHandler(_ req: Request) throws -> Future<Response> {
+		return try flatMap(to: Response.self,
                            req.parameters.next(User.self),
                            req.parameters.next(Chat.self)) { user, chat in
-                            return user.chats
-                                .attach(chat, on: req)
-                                .transform(to: .created)
+							
+							let pivot = try UserChatPivot(user, chat)
+							return pivot
+									.save(on: req)
+									.withStatus(.created, using: req)
         }
     }
 }
 
 // MARK: - Languages related methods
 extension UsersController {
-    func addLanguagesHandler(_ req: Request) throws -> Future<HTTPStatus> {
-        return try flatMap(to: HTTPStatus.self,
+    func addLanguagesHandler(_ req: Request) throws -> Future<Response> {
+        return try flatMap(to: Response.self,
                            req.parameters.next(User.self),
                            req.parameters.next(Language.self)) { user, language in
-                            return user.languages
-                                .attach(language, on: req)
-                                .transform(to: .created)
+                            
+                            let pivot = try UserLanguagePivot(user, language)
+                            
+                            return pivot
+                                    .save(on: req)
+                                    .withStatus(.created, using: req)
         }
     }
     
