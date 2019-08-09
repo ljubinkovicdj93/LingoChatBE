@@ -19,8 +19,8 @@ struct UserChatsController: RouteCollection {
     func getAllMessagesHandler(_ req: Request) throws -> Future<[Message]> {
         return try req
             .parameters.next(UserChatPivot.self)
-            .flatMap(to: [Message].self) { ulp in
-                return try ulp.messages.query(on: req).all()
+            .flatMap(to: [Message].self) { ucp in
+                return try ucp.messages.query(on: req).all()
         }
     }
     
