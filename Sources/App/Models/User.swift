@@ -9,6 +9,10 @@ import Vapor
 import Authentication
 import JWT
 
+protocol FullNameRepresentable {
+    var fullName: String { get }
+}
+
 final class User: Codable {
     var id: UUID?
     var firstName: String
@@ -207,4 +211,10 @@ extension User {
 // MARK: - Authentication
 extension User: TokenAuthenticatable {
     typealias TokenType = Token
+}
+
+extension User.Public: FullNameRepresentable {
+    var fullName: String {
+        return "\(firstName) \(lastName)"
+    }
 }

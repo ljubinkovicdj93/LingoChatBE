@@ -46,13 +46,12 @@ extension Token {
 //                         userID: user.requireID())
         
         let publicUser = user.createPublicUser()
-								.set(exp: Date(timeIntervalSince1970: 1558785600.0))
-								.set(iss: "DJORDJE THE KING")
 								.set(iat: Date())
-								.set(aud: ["Djole, Ana, Djole-Ana's Pet, etc..."])
-		
-        print("publicUser.id:", publicUser.id?.uuidString)
-		print("PUBLIC_USER:", publicUser)
+        
+        publicUser.set(iss: publicUser.fullName)
+        
+        let expirationDate = Date().addDays(60)
+        publicUser.set(exp: expirationDate)
 
         // Create JWT and sign
         let data = try JWT(payload: publicUser).sign(using: .hs256(key: "secret"))

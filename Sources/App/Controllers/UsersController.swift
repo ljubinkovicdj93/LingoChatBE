@@ -129,7 +129,6 @@ extension UsersController {
     }
     
     func addChatsHandler(_ req: Request) throws -> Future<Response> {
-//        return try flatMap(to: HTTPStatus.self,
 		return try flatMap(to: Response.self,
                            req.parameters.next(User.self),
                            req.parameters.next(Chat.self)) { user, chat in
@@ -138,23 +137,22 @@ extension UsersController {
 							return pivot
 									.save(on: req)
 									.withStatus(.created, using: req)
-
-//                            return user.chats
-//                                .attach(chat, on: req)
-//                                .transform(to: .created)
         }
     }
 }
 
 // MARK: - Languages related methods
 extension UsersController {
-    func addLanguagesHandler(_ req: Request) throws -> Future<HTTPStatus> {
-        return try flatMap(to: HTTPStatus.self,
+    func addLanguagesHandler(_ req: Request) throws -> Future<Response> {
+        return try flatMap(to: Response.self,
                            req.parameters.next(User.self),
                            req.parameters.next(Language.self)) { user, language in
-                            return user.languages
-                                .attach(language, on: req)
-                                .transform(to: .created)
+                            
+                            let pivot = try UserLanguagePivot(user, language)
+                            
+                            return pivot
+                                    .save(on: req)
+                                    .withStatus(.created, using: req)
         }
     }
     
