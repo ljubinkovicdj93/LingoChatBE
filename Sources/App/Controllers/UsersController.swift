@@ -8,6 +8,23 @@ import Vapor
 import Fluent
 import Crypto
 
+enum UserError: Error, LocalizedError {
+    case userAlreadyRegistered
+    case userDoesntExist(String)
+    case wrongPassword
+    
+    var errorDescription: String? {
+        switch self {
+        case .userAlreadyRegistered:
+            return "The email address has already been registered."
+        case .userDoesntExist(let email):
+            return "User: '\(email)' doesn't exist in the database."
+        case .wrongPassword:
+            return "Wrong password inputted."
+        }
+    }
+}
+
 struct UsersController: RouteCollection {
     typealias T = User
     typealias U = User.Public
@@ -52,21 +69,48 @@ struct UsersController: RouteCollection {
     
     private func registerHandler(_ req: Request, user: User) throws -> Future<Response> {
         
-        try user.validate()
+        do {
+            try user.validate()
+        } catch (let error) {
+            let validationError = error as? ValidationError
+            return req.future(req.redirect(to: redirectURL(validationError?.reason)))
+        }
         
-        user.password = try BCrypt.hash(user.password)
-        
-        return user.save(on: req)
-            .flatMap(to: Token.self, { user -> Future<Token> in
-                let token = try Token.generate(for: user)
-                return token.save(on: req)
-            }).encode(status: HTTPStatus.created, for: req)
+        return User
+                .query(on: req)
+                .filter(\.email == user.email)
+                .first()
+                .flatMap(to: Response.self) { foundUser in
+                // Create a new user if no users meeting the email criteria exist.
+                guard let _ = foundUser else {
+                    user.password = try BCrypt.hash(user.password)
+                    
+                    return user.save(on: req)
+                        .flatMap(to: Token.self, { user -> Future<Token> in
+                            let token = try Token.generate(for: user)
+                            return token.save(on: req)
+                        }).encode(status: HTTPStatus.created, for: req)
+                }
+                // Such user already exists.
+                return req
+                        .future(error: BasicValidationError(UserError.userAlreadyRegistered.localizedDescription))
+            }
     }
     
-    private func loginHandler(_ req: Request) throws -> Future<Token> {
+    private func redirectURL(_ errorMessage: String?) -> String {
+        let redirect: String
+        if let message = errorMessage?.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+            redirect = "/register?message=\(message)"
+        } else {
+            redirect = "/register?message=Unknown+error"
+        }
+        return redirect
+    }
+    
+    private func loginHandler(_ req: Request) throws -> Future<Response> {
         let user = try req.requireAuthenticated(User.self) // saves the user's identity in the request's authentication cache, making it easy to retrieve the user object later.
         let token = try Token.generate(for: user)
-        return token.save(on: req)
+        return token.save(on: req).encode(status: .ok, for: req)
     }
 }
 
