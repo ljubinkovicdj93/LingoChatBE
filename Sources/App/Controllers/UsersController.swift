@@ -50,14 +50,17 @@ struct UsersController: RouteCollection {
         basicAuthGroup.post("login", use: loginHandler)
     }
     
-    private func registerHandler(_ req: Request, user: User) throws -> Future<Token> {
+    private func registerHandler(_ req: Request, user: User) throws -> Future<Response> {
+        
+        try user.validate()
+        
         user.password = try BCrypt.hash(user.password)
         
         return user.save(on: req)
             .flatMap(to: Token.self, { user -> Future<Token> in
                 let token = try Token.generate(for: user)
                 return token.save(on: req)
-            })
+            }).encode(status: HTTPStatus.created, for: req)
     }
     
     private func loginHandler(_ req: Request) throws -> Future<Token> {
@@ -185,5 +188,19 @@ extension UsersController {
             .flatMap(to: [User].self) { user in
                 try user.friendOf.query(on: req).all()
         }
+    }
+}
+
+extension User: Validatable {
+    static func validations() throws -> Validations<User> {
+        var validations = Validations(User.self)
+        
+        try validations.add(\.email, .email)
+        try validations.add(\.firstName, .alphanumeric && .count(2...))
+        try validations.add(\.lastName, .alphanumeric && .count(2...))
+        try validations.add(\.password, .count(8...))
+        try validations.add(\.photoUrl, .url || .nil)
+        
+        return validations
     }
 }
