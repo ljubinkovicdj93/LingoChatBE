@@ -1,7 +1,9 @@
-// Project: LingoChatBE
 //
-// Created on Thursday, April 04, 2019.
-// 
+//  FriendshipsController.swift
+//  App
+//
+//  Created by Dorde Ljubinkovic on 9/19/19.
+//
 
 import Vapor
 import Fluent
@@ -27,3 +29,4 @@ struct FriendshipsController: RouteCollection {
             .transform(to: .noContent)
     }
 }
+

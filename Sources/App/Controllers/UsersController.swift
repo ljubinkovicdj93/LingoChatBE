@@ -1,206 +1,299 @@
-// Project: LingoChatBE
 //
-// Created on Thursday, April 04, 2019.
-// 
+//  UsersController.swift
+//  App
+//
+//  Created by Dorde Ljubinkovic on 9/18/19.
+//
 
-import JWT
+import Foundation
 import Vapor
-import Fluent
 import Crypto
+import JWT
 
 struct UsersController: RouteCollection {
-    typealias T = User
-    typealias U = User.Public
-
     func boot(router: Router) throws {
-        let usersRoutes = router.grouped("api", "users")
-
-        // Register
-        usersRoutes.post(User.self, at: "register", use: registerHandler)
+        let usersRoute = router.grouped("api", "users")
         
-        // Retrievable
-        usersRoutes.get(use: getAllHandler)
-        usersRoutes.get(User.parameter, use: getHandler)
-        usersRoutes.get("first", use: getFirstHandler)
+        usersRoute.get(use: getAllHandler)
+        usersRoute.get(User.parameter, use: getHandler)
+        usersRoute.post(User.self, use: createHandler)
         
-        // Updatable
-        usersRoutes.put(User.parameter, use: updateHandler)
-        
-        // Deletable
-        usersRoutes.delete(User.parameter, use: deleteHandler)
-        
-        // Relational endpoints
-        // Chat(s)
-        usersRoutes.post(User.parameter, "chats", Chat.parameter, use: addChatsHandler)
-        usersRoutes.get(User.parameter, "chats", use: getAllChatsHandler)
-        usersRoutes.get(User.parameter, "chats-created", use: getChatsCreatedByUserHandler)
-        
-        // Language(s)
-        usersRoutes.post(User.parameter, "languages", Language.parameter, use: addLanguagesHandler)
-        usersRoutes.get(User.parameter, "languages", use: getAllLanguagesHandler)
-
-        // Friendship(s)
-        usersRoutes.post(User.parameter, "befriend", User.parameter, use: addFriendHandler)
-        usersRoutes.get(User.parameter, "friends", use: getFriendsHandler)
-        usersRoutes.get(User.parameter, "friendOf", use: getFriendOfHandler)
-        
-        // Authentication Middleware
+        // Authentication related
         let basicAuthMiddleware = User.basicAuthMiddleware(using: BCryptDigest())
-        let basicAuthGroup = usersRoutes.grouped(basicAuthMiddleware)
+        // There is no guard authentication middleware since requireAuthenticated(_:)
+        // throws the correct error if a user isn't authenticated.
+        let basicAuthGroup = usersRoute.grouped(basicAuthMiddleware)
+        
         basicAuthGroup.post("login", use: loginHandler)
+        
+        // Protected routes
+        #warning("TODO: Find a way to do this in a middleware.")
+        // Use https://github.com/skelpo/JWTMiddleware
+        //        usersRoute.get("test", use: getTest)
+        usersRoute.post(ChatCreateData.self, at: User.parameter, "chats", use: addChatHandler)
+        usersRoute.get(User.parameter, "chats", use: getChatsHandler)
+        
+        // Messaging
+        usersRoute.post(MessageCreateData.self, at: User.parameter, "chats", Chat.parameter, use: addMessageToChatHandler)
+        usersRoute.get(User.parameter, "chats", Chat.parameter, "messages", use: getUserMessagesHandler)
+        
+        // Friendship(s)
+        usersRoute.post(User.parameter, "friendships", User.parameter, use: addFriendHandler)
+        #warning("TODO: TEST THIS!!!")
+        usersRoute.put(FriendRequestUpdateData.self, at: User.parameter, "friendships", User.parameter, use: updateFriendshipHandler)
+        usersRoute.get(User.parameter, "friendships", use: getFriendsHandler)
     }
     
-    private func registerHandler(_ req: Request, user: User) throws -> Future<Response> {
+    func getUserMessagesHandler(_ req: Request) throws -> Future<[Message]> {
+        // Fetches the token from `Authorization: Bearer <token>` header
+        guard req.http.headers.bearerAuthorization != nil else { throw Abort(.unauthorized) }
         
-        try user.validate()
+        return try flatMap(to: [Message].self,
+                           req.parameters.next(User.self),
+                           req.parameters.next(Chat.self)) { _, chat in
+                            
+                            return try chat.messages.query(on: req).all()
+        }
+    }
+    
+    func addMessageToChatHandler(_ req: Request, data: MessageCreateData) throws -> Future<Message> {
+        // Fetches the token from `Authorization: Bearer <token>` header
+        guard req.http.headers.bearerAuthorization != nil else { throw Abort(.unauthorized) }
         
+        do {
+            try data.validate()
+            
+            return try flatMap(to: Message.self,
+                               req.parameters.next(User.self),
+                               req.parameters.next(Chat.self)) { user, chat in
+                                
+                                let message = try Message(text: data.text,
+                                                          userId: user.requireID(),
+                                                          chatId: chat.requireID())
+                                return message.save(on: req)
+            }
+        } catch {
+            print(error.localizedDescription)
+            throw error
+        }
+    }
+    
+    func loginHandler(_ req: Request) throws -> String {
+        // Get the authenticated user from the request. Saves the user's identity in the request's authentication cache, allowing us to retrieve the user object later.
+        let user = try req.requireAuthenticated(User.self)
+        
+        // Creates JWT and signs it.
+        let data = try JWT(payload: user.jwtPublic).sign(using: .hs256(key: "secret"))
+        
+        guard let jwtString = String(data: data, encoding: .utf8) else { throw Abort(.internalServerError) }
+        
+        return jwtString
+    }
+    
+    func createHandler(_ req: Request, user: User) throws -> Future<User.Public> {
         user.password = try BCrypt.hash(user.password)
-        
-        return user.save(on: req)
-            .flatMap(to: Token.self, { user -> Future<Token> in
-                let token = try Token.generate(for: user)
-                return token.save(on: req)
-            }).encode(status: HTTPStatus.created, for: req)
+        return user.save(on: req).public
     }
     
-    private func loginHandler(_ req: Request) throws -> Future<Token> {
-        let user = try req.requireAuthenticated(User.self) // saves the user's identity in the request's authentication cache, making it easy to retrieve the user object later.
-        let token = try Token.generate(for: user)
-        return token.save(on: req)
-    }
-}
-
-// MARK: - Retrievable
-extension UsersController: Retrievable {
     func getAllHandler(_ req: Request) throws -> Future<[User.Public]> {
-        return User.query(on: req).decode(data: User.Public.self).all()
+        return User
+            .query(on: req)
+            .decode(data: User.Public.self)
+            .all()
     }
     
     func getHandler(_ req: Request) throws -> Future<User.Public> {
-        return try req.parameters.next(User.self).convertToPublic()
+        return try req.parameters.next(User.self).public
     }
     
-    func getFirstHandler(_ req: Request) throws -> Future<User.Public> {
-        return User.query(on: req)
-            .decode(data: User.Public.self)
-            .first()
-            .unwrap(or: Abort(.notFound))
-    }
-}
-
-// MARK: - Updatable
-extension UsersController: Updatable {
-    func updateHandler(_ req: Request) throws -> Future<User.Public> {
-        return try flatMap(
-            to: User.Public.self,
-            req.parameters.next(User.self),
-            req.content.decode(User.self)
-        ) { user, updatedUser in
-            user.firstName = updatedUser.firstName
-            user.lastName = updatedUser.lastName
-            user.email = updatedUser.email
-            user.username = updatedUser.username
-            user.password = updatedUser.password
-            user.photoUrl = updatedUser.photoUrl
-            user.friendCount = updatedUser.friendCount
+    // MARK: - Protected routes
+    //    func getTest(_ req: Request) throws -> Future<User.Public> {
+    //        // Fetches the token from `Authorization: Bearer <token>` header
+    //        guard let bearer = req.http.headers.bearerAuthorization else {
+    //            throw Abort(.unauthorized)
+    //        }
+    //
+    //        // parse JWT from token string, using HS-256 signer
+    //        let jwt = try JWT<User.Public>(from: bearer.token,
+    //                                       verifiedUsing: .hs256(key: "secret"))
+    //        let user = jwt.payload
+    //
+    //        return req.future(user)
+    //    }
+    
+    // MARK: - Siblings relationship (many-to-many) related methods.
+    func addChatHandler(_ req: Request, data: ChatCreateData) throws -> Future<HTTPStatus> {
+        // Fetches the token from `Authorization: Bearer <token>` header
+        guard req.http.headers.bearerAuthorization != nil else { throw Abort(.unauthorized) }
+        
+        do {
+            try data.validate()
             
-            return user.save(on: req).convertToPublic()
-        }
-    }
-}
-
-// MARK: - Deletable
-extension UsersController: Deletable {}
-
-// MARK: - Queryable
-extension UsersController: Queryable {}
-
-// MARK: - Chats related methods
-extension UsersController {
-    func getChatsCreatedByUserHandler(_ req: Request) throws -> Future<[Chat]> {
-        return try req.parameters.next(User.self)
-            .flatMap(to: [Chat].self) { user in
-                try user.chatsCreatedByThisUser.query(on: req).all()
-        }
-    }
-    
-    func getAllChatsHandler(_ req: Request) throws -> Future<[Chat]> {
-        return try req.parameters.next(User.self)
-            .flatMap(to: [Chat].self) { user in
-                try user.chats.query(on: req).all()
-        }
-    }
-    
-    func addChatsHandler(_ req: Request) throws -> Future<Response> {
-		return try flatMap(to: Response.self,
-                           req.parameters.next(User.self),
-                           req.parameters.next(Chat.self)) { user, chat in
-							
-							let pivot = try UserChatPivot(user, chat)
-							return pivot
-									.save(on: req)
-									.withStatus(.created, using: req)
-        }
-    }
-}
-
-// MARK: - Languages related methods
-extension UsersController {
-    func addLanguagesHandler(_ req: Request) throws -> Future<Response> {
-        return try flatMap(to: Response.self,
-                           req.parameters.next(User.self),
-                           req.parameters.next(Language.self)) { user, language in
-                            
-                            let pivot = try UserLanguagePivot(user, language)
-                            
-                            return pivot
-                                    .save(on: req)
-                                    .withStatus(.created, using: req)
+            // Store save operations
+            var userSaves: [Future<Void>] = []
+            
+            return try req
+                .parameters
+                .next(User.self)
+                .flatMap { user in
+                    guard let id = user.id else { throw Abort(.internalServerError) }
+                    
+                    let chat: Chat
+                    #warning("TODO: Handle this later")
+                    //                if data.users.isEmpty { // If we talk to ourselves...
+                    //                    chat = Chat(name: user.public.fullName)
+                    //                }
+                    if data.users.count == 1 { // If it is an 1-1 chat.
+                        chat = Chat(name: data.users[0].fullName)
+                    } else { // If it is a group chat.
+                        guard let chatName = data.name else { throw BasicValidationError("Must provide `name` when creating a chat with more than 2 users.") }
+                        guard !chatName.isEmpty else { throw BasicValidationError("Chat name must NOT be empty!") }
+                        
+                        chat = Chat(name: chatName)
+                    }
+                    
+                    try userSaves.append(User.addUser(id, to: chat, on: req))
+                    return chat.save(on: req)
+                }
+                .flatMap { (chat: Chat) -> Future<HTTPStatus> in
+                    for user in data.users {
+                        guard let id = user.id else { throw Abort(.internalServerError) }
+                        try userSaves.append(User.addUser(id, to: chat, on: req))
+                    }
+                    
+                    // Flattens the array to complete ALL the Fluent operations and transforms the result to an HTTP status code.
+                    return userSaves.flatten(on: req).transform(to: .created)
+            }
+        } catch {
+            print(error.localizedDescription)
+            throw error
         }
     }
     
-    func getAllLanguagesHandler(_ req: Request) throws -> Future<[Language]> {
-        return try req.parameters.next(User.self)
-            .flatMap(to: [Language].self) { user in
-                try user.languages.query(on: req).all()
+    func getChatsHandler(_ req: Request) throws -> Future<[Chat]> {
+        return try req.parameters.next(User.self).flatMap(to: [Chat].self) { user in
+            try user.chats.query(on: req).all()
         }
     }
-}
-
-extension UsersController {
+    
+    // MARK: - Friend requests
+    func updateFriendshipHandler(_ req: Request, data: FriendRequestUpdateData) throws -> Future<Response> {
+        do {
+            try data.validate()
+            
+            return try flatMap(to: Response.self,
+                               req.parameters.next(User.self),
+                               req.parameters.next(User.self)) { user, friend in
+                                
+                                // This "can't" fail since we have validations set up in place for FriendRequestUpdateData, which always
+                                // guarantee that the status can't be anything except:
+                                // -1 (declined)
+                                //  0 (pending)
+                                //  1 (accepted).
+                                guard let friendshipStatus = FriendshipPivot.FriendRequestStatus(rawValue: data.status)
+                                    else { throw Abort(.internalServerError) }
+                                
+                                return FriendshipPivot
+                                    .query(on: req)
+                                    .all()
+                                    .flatMap(to: Response.self) {
+                                        guard let foundFriendshipRequest = try $0
+                                            .filter({
+                                                try ($0.userId == user.requireID() || $0.friendId == user.requireID())
+                                                    || ($0.userId == friend.requireID() || $0.friendId == friend.requireID())
+                                            })
+                                            .first
+                                            else { throw Abort(.notFound) }
+                                        
+                                        foundFriendshipRequest.status = friendshipStatus
+                                        
+                                        let response = Response(using: req)
+                                        
+                                        switch foundFriendshipRequest.status {
+                                        case .approved:
+                                            try response.content.encode(foundFriendshipRequest)
+                                            return foundFriendshipRequest.save(on: req).transform(to: response)
+                                        case .declined:
+                                            response.http.status = .noContent
+                                            return foundFriendshipRequest.delete(on: req).transform(to: response)
+                                        default:
+                                            throw BasicValidationError("Has to have a status of either:\n-1 (declined)\n1 (accepted)")
+                                        }
+                                }
+            }
+        } catch {
+            throw error
+        }
+    }
+    
     func addFriendHandler(_ req: Request) throws -> Future<HTTPStatus> {
         return try flatMap(to: HTTPStatus.self,
                            req.parameters.next(User.self),
                            req.parameters.next(User.self)) { user, friend in
-                            return try FriendshipPivot(user, friend).save(on: req).transform(to: .created)
+                            
+                            return FriendshipPivot
+                                .query(on: req)
+                                .all()
+                                .flatMap(to: HTTPStatus.self) {
+                                    let foundFriendshipRequest = try $0
+                                        .filter({
+                                            try ($0.userId == user.requireID() || $0.friendId == user.requireID())
+                                                || ($0.userId == friend.requireID() || $0.friendId == friend.requireID())
+                                        })
+                                        .first
+                                    
+                                    guard foundFriendshipRequest == nil else { throw BasicValidationError("Such friendship already exists!") }
+                                    
+                                    return try FriendshipPivot(user: user,
+                                                               friend: friend,
+                                                               status: .pending)
+                                        .save(on: req)
+                                        .transform(to: .created)
+                            }
         }
     }
     
-    func getFriendsHandler(_ req: Request) throws -> Future<[User]> {
-        return try req.parameters.next(User.self)
-            .flatMap(to: [User].self) { user in
-                try user.friends.query(on: req).all()
+    func getFriendsHandler(_ req: Request) throws -> Future<[User.Public]> {
+        guard let statusTerm = req.query[String.self, at: "status"] else { throw BasicValidationError("status query parameter is mandatory!") }
+        guard
+            let intStatus = Int(statusTerm),
+            intStatus == 0 || intStatus == 1,
+            let friendshipStatus = FriendshipPivot.FriendRequestStatus(rawValue: intStatus)
+            else {
+                throw BasicValidationError(
+                    """
+                        Friend request status is invalid. Send one of the following:
+                            0 -> Pending (pending friend requests)
+                            1 -> Approved (existing friends)
+                    """
+                )
         }
-    }
-    
-    func getFriendOfHandler(_ req: Request) throws -> Future<[User]> {
-        return try req.parameters.next(User.self)
-            .flatMap(to: [User].self) { user in
-                try user.friendOf.query(on: req).all()
+        
+        return try req.parameters.next(User.self).flatMap(to: [User.Public].self) { user in
+            guard let id = user.id else { throw Abort(.internalServerError) }
+            
+            return FriendshipPivot
+                .query(on: req)
+                .filter(\FriendshipPivot.status, .equal, friendshipStatus)
+                .all()
+                .map(to: [FriendshipPivot].self) {
+                    $0.filter { id == $0.userId || id == $0.friendId }
+                }
+                .flatMap(to: [User.Public].self) {
+                    // Used to fetch friends from chats where the current user is present.
+                    var individualUserFetches: [Future<User?>] = []
+                    
+                    for fp in $0 {
+                        let friendId = id == fp.userId ? fp.friendId : fp.userId
+                        let userFetch = User.query(on: req).filter(\User.id, .equal, friendId).first()
+                        individualUserFetches.append(userFetch)
+                    }
+                    
+                    return individualUserFetches.flatten(on: req).map(to: [User.Public].self) { users in
+                        let publicUsers = users.compactMap({ $0?.public })
+                        return publicUsers
+                    }
+            }
         }
-    }
-}
-
-extension User: Validatable {
-    static func validations() throws -> Validations<User> {
-        var validations = Validations(User.self)
-        
-        try validations.add(\.email, .email)
-        try validations.add(\.firstName, .alphanumeric && .count(2...))
-        try validations.add(\.lastName, .alphanumeric && .count(2...))
-        try validations.add(\.password, .count(8...))
-        try validations.add(\.photoUrl, .url || .nil)
-        
-        return validations
     }
 }
