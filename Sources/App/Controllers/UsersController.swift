@@ -10,23 +10,6 @@ import Vapor
 import Crypto
 import JWT
 
-enum UserError: Error, LocalizedError {
-    case userAlreadyRegistered
-    case userDoesntExist(String)
-    case wrongPassword
-    
-    var errorDescription: String? {
-        switch self {
-        case .userAlreadyRegistered:
-            return "The email address has already been registered."
-        case .userDoesntExist(let email):
-            return "User: '\(email)' doesn't exist in the database."
-        case .wrongPassword:
-            return "Wrong password inputted."
-        }
-    }
-}
-
 struct UsersController: RouteCollection {
     func boot(router: Router) throws {
         let usersRoute = router.grouped("api", "users")
