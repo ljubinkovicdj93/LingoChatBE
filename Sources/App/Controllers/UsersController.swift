@@ -78,7 +78,7 @@ struct UsersController: RouteCollection {
         }
     }
     
-    func loginHandler(_ req: Request) throws -> String {
+    func loginHandler(_ req: Request) throws -> JWTResponse {
         // Get the authenticated user from the request. Saves the user's identity in the request's authentication cache, allowing us to retrieve the user object later.
         let user = try req.requireAuthenticated(User.self)
         
@@ -87,7 +87,7 @@ struct UsersController: RouteCollection {
         
         guard let jwtString = String(data: data, encoding: .utf8) else { throw Abort(.internalServerError) }
         
-        return jwtString
+        return JWTResponse(token: jwtString)
     }
     
     func createHandler(_ req: Request, user: User) throws -> Future<User.Public> {
@@ -107,20 +107,7 @@ struct UsersController: RouteCollection {
     }
     
     // MARK: - Protected routes
-    //    func getTest(_ req: Request) throws -> Future<User.Public> {
-    //        // Fetches the token from `Authorization: Bearer <token>` header
-    //        guard let bearer = req.http.headers.bearerAuthorization else {
-    //            throw Abort(.unauthorized)
-    //        }
-    //
-    //        // parse JWT from token string, using HS-256 signer
-    //        let jwt = try JWT<User.Public>(from: bearer.token,
-    //                                       verifiedUsing: .hs256(key: "secret"))
-    //        let user = jwt.payload
-    //
-    //        return req.future(user)
-    //    }
-    
+
     // MARK: - Siblings relationship (many-to-many) related methods.
     func addChatHandler(_ req: Request, data: ChatCreateData) throws -> Future<HTTPStatus> {
         // Fetches the token from `Authorization: Bearer <token>` header

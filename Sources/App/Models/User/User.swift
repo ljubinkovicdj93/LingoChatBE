@@ -183,3 +183,7 @@ extension User {
                            email: email)
     }
 }
+
+struct JWTResponse: Content {
+    let token: String
+}
