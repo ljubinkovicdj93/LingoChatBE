@@ -3,6 +3,7 @@ import Vapor
 import FluentPostgreSQL
 import Authentication
 import JWT
+import Pagination
 
 protocol FullNameRepresentable {
     var fullName: String { get }
@@ -187,3 +188,6 @@ extension User {
 struct JWTResponse: Content {
     let token: String
 }
+
+// MARK: - Pagination
+extension User: Paginatable {}
