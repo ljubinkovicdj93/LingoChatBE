@@ -82,17 +82,26 @@ struct UsersController: RouteCollection {
         // Get the authenticated user from the request. Saves the user's identity in the request's authentication cache, allowing us to retrieve the user object later.
         let user = try req.requireAuthenticated(User.self)
         
-        // Creates JWT and signs it.
-        let data = try JWT(payload: user.jwtPublic).sign(using: .hs256(key: "secret"))
+        return try createJWT(from: user)
+    }
+    
+    func createHandler(_ req: Request, user: User) throws -> Future<JWTResponse> {
+        user.password = try BCrypt.hash(user.password)
+        return user
+            .save(on: req)
+            .public
+            .map(to: JWTResponse.self) { savedUser in
+                return try self.createJWT(from: user)
+        }
+    }
+    
+    /// Creates JWT and signs it.
+    private func createJWT(from user: User, secret: String = "secret") throws -> JWTResponse {
+        let data = try JWT(payload: user.jwtPublic).sign(using: .hs256(key: secret))
         
         guard let jwtString = String(data: data, encoding: .utf8) else { throw Abort(.internalServerError) }
         
         return JWTResponse(token: jwtString)
-    }
-    
-    func createHandler(_ req: Request, user: User) throws -> Future<User.Public> {
-        user.password = try BCrypt.hash(user.password)
-        return user.save(on: req).public
     }
     
     func getAllHandler(_ req: Request) throws -> Future<[User.Public]> {
