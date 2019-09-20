@@ -96,8 +96,9 @@ struct UsersController: RouteCollection {
     }
     
     func getAllHandler(_ req: Request) throws -> Future<[User.Public]> {
-        return User
+        return try User
             .query(on: req)
+            .paginate(on: req)
             .decode(data: User.Public.self)
             .all()
     }
