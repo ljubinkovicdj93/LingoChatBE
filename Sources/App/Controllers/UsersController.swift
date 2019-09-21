@@ -234,8 +234,8 @@ struct UsersController: RouteCollection {
                                 .flatMap(to: HTTPStatus.self) {
                                     let foundFriendshipRequest = try $0
                                         .filter({
-                                            try ($0.userId == user.requireID() || $0.friendId == user.requireID())
-                                                || ($0.userId == friend.requireID() || $0.friendId == friend.requireID())
+                                            try ($0.userId == user.requireID() && $0.friendId == friend.requireID())
+                                             || ($0.userId == friend.requireID() && $0.friendId == user.requireID())
                                         })
                                         .first
                                     
@@ -254,43 +254,75 @@ struct UsersController: RouteCollection {
         guard let statusTerm = req.query[String.self, at: "status"] else { throw BasicValidationError("status query parameter is mandatory!") }
         guard
             let intStatus = Int(statusTerm),
-            intStatus == 0 || intStatus == 1,
-            let friendshipStatus = FriendshipPivot.FriendRequestStatus(rawValue: intStatus)
+            intStatus == 0 || intStatus == 1
             else {
                 throw BasicValidationError(
                     """
                         Friend request status is invalid. Send one of the following:
                             0 -> Pending (pending friend requests)
                             1 -> Approved (existing friends)
+                            2 -> My Pending requests
                     """
                 )
         }
         
-        return try req.parameters.next(User.self).flatMap(to: [User.Public].self) { user in
-            guard let id = user.id else { throw Abort(.internalServerError) }
-            
-            return FriendshipPivot
-                .query(on: req)
-                .filter(\FriendshipPivot.status, .equal, friendshipStatus)
-                .all()
-                .map(to: [FriendshipPivot].self) {
-                    $0.filter { id == $0.userId || id == $0.friendId }
+        switch intStatus {
+        case 0:
+            return try req.parameters.next(User.self).flatMap(to: [User.Public].self) { user in
+                guard let id = user.id else { throw Abort(.internalServerError) }
+                
+                return FriendshipPivot
+                    .query(on: req)
+                    .filter(\FriendshipPivot.status, .equal, .pending)
+                    .filter(\FriendshipPivot.friendId, .equal, id)
+                    .all()
+                    .flatMap(to: [User.Public].self) {
+                        // Used to fetch friends from chats where the current user is present.
+                        var individualUserFetches: [Future<User?>] = []
+                        
+                        for fp in $0 {
+                            let requesterId = fp.userId
+                            let userFetch = User.find(requesterId, on: req)
+                            individualUserFetches.append(userFetch)
+                        }
+                        
+                        return individualUserFetches.flatten(on: req).map(to: [User.Public].self) { users in
+                            let publicUsers = users.compactMap({ $0?.public })
+                            return publicUsers
+                        }
                 }
-                .flatMap(to: [User.Public].self) {
-                    // Used to fetch friends from chats where the current user is present.
-                    var individualUserFetches: [Future<User?>] = []
-                    
-                    for fp in $0 {
-                        let friendId = id == fp.userId ? fp.friendId : fp.userId
-                        let userFetch = User.query(on: req).filter(\User.id, .equal, friendId).first()
-                        individualUserFetches.append(userFetch)
-                    }
-                    
-                    return individualUserFetches.flatten(on: req).map(to: [User.Public].self) { users in
-                        let publicUsers = users.compactMap({ $0?.public })
-                        return publicUsers
-                    }
             }
+        case 1:
+            return try req.parameters.next(User.self).flatMap(to: [User.Public].self) { user in
+                guard let id = user.id else { throw Abort(.internalServerError) }
+                
+                return FriendshipPivot
+                    .query(on: req)
+                    .filter(\FriendshipPivot.status, .equal, .approved)
+                    .group(.or) { queryBuilder in
+                        queryBuilder
+                            .filter(\FriendshipPivot.userId, .equal, id)
+                            .filter(\FriendshipPivot.friendId, .equal, id)
+                    }
+                    .all()
+                    .flatMap(to: [User.Public].self) {
+                        // Used to fetch friends from chats where the current user is present.
+                        var individualUserFetches: [Future<User?>] = []
+                        
+                        for fp in $0 {
+                            let friendId = id == fp.userId ? fp.friendId : fp.userId
+                            let userFetch = User.find(friendId, on: req)
+                            individualUserFetches.append(userFetch)
+                        }
+                        
+                        return individualUserFetches.flatten(on: req).map(to: [User.Public].self) { users in
+                            let publicUsers = users.compactMap({ $0?.public })
+                            return publicUsers
+                        }
+                }
+            }
+        default:
+            throw Abort(.internalServerError)
         }
     }
 }

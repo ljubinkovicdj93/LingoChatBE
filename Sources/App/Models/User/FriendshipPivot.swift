@@ -48,6 +48,7 @@ extension FriendshipPivot: Migration {
             try addProperties(to: builder)
             
             builder.unique(on: \.userId, \.friendId)
+            builder.unique(on: \.friendId, \.userId)
             
             builder.reference(from: \.userId, to: \User.id, onDelete: .cascade)
             builder.reference(from: \.friendId, to: \User.id, onDelete: .cascade)
