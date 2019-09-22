@@ -45,6 +45,18 @@ final class User: Codable {
         }
     }
 }
+
+extension User: Equatable {
+    static func == (lhs: User, rhs: User) -> Bool {
+        guard
+            let lId = lhs.id,
+            let rId = rhs.id
+        else { fatalError("IDs must exist!") }
+        
+        return lId == rId
+    }
+}
+
 extension User: PostgreSQLUUIDModel {}
 
 /// Allows `User` to be encoded to and decoded from HTTP messages.
@@ -186,4 +198,10 @@ extension User {
 
 struct JWTResponse: Content {
     let token: String
+}
+
+extension User: JWTPayload {
+    func verify(using signer: JWTSigner) throws {
+        // Nothing to verify since our payload doesn't include any claims.
+    }
 }

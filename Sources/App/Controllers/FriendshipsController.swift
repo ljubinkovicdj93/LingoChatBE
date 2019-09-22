@@ -18,7 +18,10 @@ struct FriendshipsController: RouteCollection {
     }
     
     func getAllFriendshipsHandler(_ req: Request) throws -> Future<[FriendshipPivot]> {
-        return FriendshipPivot.query(on: req).all()
+        return FriendshipPivot
+            .query(on: req)
+            .filter(\.chatId, .isNot, nil)
+            .all()
     }
     
     func deleteFriendshipHandler(_ req: Request) throws -> Future<HTTPStatus> {
@@ -30,3 +33,7 @@ struct FriendshipsController: RouteCollection {
     }
 }
 
+struct FriendDTO: Content {
+    let friend: User.Public?
+    let chatId: Chat.ID?
+}

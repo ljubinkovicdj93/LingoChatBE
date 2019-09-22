@@ -19,6 +19,9 @@ struct ChatsController: RouteCollection {
         // Use https://github.com/skelpo/JWTMiddleware
         chatsRoute.get(use: getAllHandler)
         chatsRoute.get(Chat.parameter, "users", use: getUsersHandler)
+        
+        #warning("TODO: REFACTOR")
+//        chatsRoute.get(User.parameter, use: getUserChatUserMessagesHandler)
     }
     
     func getAllHandler(_ req: Request) throws -> Future<[Chat]> {
@@ -34,5 +37,32 @@ struct ChatsController: RouteCollection {
         return try req.parameters.next(Chat.self).flatMap(to: [User.Public].self) { chat in
             return try chat.users.query(on: req).decode(data: User.Public.self).all()
         }
+    }
+    
+    #warning("TODO: REFACTOR")
+//    func getUserChatUserMessagesHandler(_ req: Request) throws -> Future<[Message]> {
+//        let userPayload = try req.userPayload()
+//
+//        return FriendshipPivot
+//            .query(on: req)
+//            .group(.and) { queryBuilder in
+//                queryBuilder.aggregate(\FriendshipPivot., field: <#T##KeyPath<Chat, T>#>)
+//        }
+//    }
+}
+
+extension Request {
+    func userPayload() throws -> User {
+        // Fetches the token from `Authorization: Bearer <token>` header
+        guard let bearer = self.http.headers.bearerAuthorization else {
+            throw Abort(.unauthorized)
+        }
+        
+        // parse JWT from token string, using HS-256 signer
+        let jwt = try JWT<User>(from: bearer.token,
+                                verifiedUsing: .hs256(key: "secret"))
+        let user = jwt.payload
+        
+        return user
     }
 }

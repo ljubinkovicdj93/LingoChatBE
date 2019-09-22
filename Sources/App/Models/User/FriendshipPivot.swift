@@ -17,25 +17,27 @@ final class FriendshipPivot: PostgreSQLUUIDPivot {
     
     // MARK: - Properties
     var status: FriendRequestStatus
+    var chatId: Chat.ID?
     
     // MARK: - Primary Key
     var id: UUID?
     
     // MARK: - Foreign keys
-    var userId: User.ID
-    var friendId: User.ID
+    var senderId: User.ID
+    var receiverId: User.ID
     
     typealias Left = User
     typealias Right = User
     
-    static var leftIDKey: LeftIDKey = \.userId
-    static var rightIDKey: RightIDKey = \.friendId
+    static var leftIDKey: LeftIDKey = \.senderId
+    static var rightIDKey: RightIDKey = \.receiverId
     
     // MARK: - Initialization
-    init(user: User, friend: User, status: FriendRequestStatus) throws {
-        self.userId = try user.requireID()
-        self.friendId = try friend.requireID()
+    init(user: User, friend: User, status: FriendRequestStatus, chatId: Chat.ID? = nil) throws {
+        self.senderId = try user.requireID()
+        self.receiverId = try friend.requireID()
         self.status = status
+        self.chatId = chatId
     }
 }
 
@@ -47,11 +49,11 @@ extension FriendshipPivot: Migration {
         return Database.create(self, on: connection) { builder in
             try addProperties(to: builder)
             
-            builder.unique(on: \.userId, \.friendId)
-            builder.unique(on: \.friendId, \.userId)
+            builder.unique(on: \.senderId, \.receiverId)
+            builder.unique(on: \.receiverId, \.senderId)
             
-            builder.reference(from: \.userId, to: \User.id, onDelete: .cascade)
-            builder.reference(from: \.friendId, to: \User.id, onDelete: .cascade)
+            builder.reference(from: \.senderId, to: \User.id, onDelete: .cascade)
+            builder.reference(from: \.receiverId, to: \User.id, onDelete: .cascade)
         }
     }
 }
