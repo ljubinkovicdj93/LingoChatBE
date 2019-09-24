@@ -12,4 +12,14 @@ public func routes(_ router: Router) throws {
     #warning("TODO: TESTING ONLY, REMOVE")
     let friendshipsController = FriendshipsController()
     try router.register(collection: friendshipsController)
+    
+    // MARK: - V2
+    let usersControllerV2 = UsersControllerV2()
+    try router.register(collection: usersControllerV2)
+    
+    let chatsControllerV2 = ChatsControllerV2()
+    try router.register(collection: chatsControllerV2)
+    
+    let friendshipsControllerV2 = FriendshipsControllerV2()
+    try router.register(collection: friendshipsControllerV2)
 }

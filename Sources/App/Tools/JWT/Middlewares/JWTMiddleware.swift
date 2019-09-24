@@ -11,7 +11,7 @@ import JWT
 final class JWTMiddleware: Middleware {
     let secret: String
     
-    init(secret: String) {
+    init(secret: String = JWTConfig.signerKey) {
         self.secret = secret
     }
     
@@ -20,8 +20,7 @@ final class JWTMiddleware: Middleware {
         
         // parse JWT from token string, using HS-256 signer
         do {
-            let _ = try JWT<User.JWTUserView>(from: token,
-                                              verifiedUsing: .hs256(key: self.secret))
+            try TokenHelpers.verifyToken(token)
             
             return try next.respond(to: request)
         } catch {
@@ -33,6 +32,6 @@ final class JWTMiddleware: Middleware {
 
 extension JWTMiddleware: ServiceType {
     static func makeService(for container: Container) throws -> JWTMiddleware {
-        return .init(secret: "secret")
+        return .init(secret: JWTConfig.signerKey)
     }
 }
