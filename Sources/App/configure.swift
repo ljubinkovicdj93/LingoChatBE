@@ -8,6 +8,9 @@ public func configure(_ config: inout Config, _ env: inout Environment, _ servic
     try services.register(FluentPostgreSQLProvider())
     try services.register(AuthenticationProvider())
     
+    // register custom service types here
+    try services.register(JWTMiddleware.self)
+    
     // Register routes to the router
     let router = EngineRouter.default()
     try routes(router)
