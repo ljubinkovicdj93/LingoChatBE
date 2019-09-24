@@ -83,6 +83,16 @@ extension User: Migration {
     }
 }
 
+// MARK: - Parent-Child relationship (one-to-many)
+
+// MARK: Refresh Token
+extension User {
+    var refreshTokens: Children<User, RefreshToken> {
+        return self.children(\.userID)
+    }
+}
+
+
 // MARK: - Sibling relationship (many-to-many)
 extension User {
     var chats: Siblings<User, Chat, UserChatPivot> {
@@ -206,9 +216,10 @@ extension User: JWTPayload {
     }
 }
 
-// MARK: - Refresh Token
-extension User {
-    var refreshTokens: Children<User, RefreshToken> {
-        return self.children(\.userID)
-    }
+struct UserUpdateData: Content {
+    let firstName: String
+    let lastName: String
+    let username: String
+    let email: String
+    let password: String
 }

@@ -12,7 +12,9 @@ import JWT
 
 struct MessagesControllerV2: RouteCollection {
     func boot(router: Router) throws {
-        let messagesRoute = router.grouped("api", "messages", "v2")
+        let messagesRoute = router
+            .grouped("api", "messages", "v2")
+            .grouped(JWTMiddleware())
     }
 }
 

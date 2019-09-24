@@ -3,26 +3,45 @@ import Fluent
 
 /// Register your application's routes here.
 public func routes(_ router: Router) throws {
-    let usersController = UsersController()
-    try router.register(collection: usersController)
+    let lingoChatRouter = LingoChatRouter()
     
-    let chatsController = ChatsController()
-    try router.register(collection: chatsController)
+    // MARK: - Version 1
+    try lingoChatRouter.registerRoutes(router, version: .v1)
     
-    #warning("TODO: TESTING ONLY, REMOVE")
-    let friendshipsController = FriendshipsController()
-    try router.register(collection: friendshipsController)
+    // MARK: - Version 2
+    try lingoChatRouter.registerRoutes(router, version: .v2)
+}
+
+enum LingoChatVersion {
+    case v1
+    case v2
+}
+
+struct LingoChatRouter {
+    static let v1Routes: [RouteCollection] = [
+        UsersController(),
+        ChatsController(),
+        FriendshipsController()
+    ]
     
-    // MARK: - V2
-    let usersControllerV2 = UsersControllerV2()
-    try router.register(collection: usersControllerV2)
+    static let v2Routes: [RouteCollection] = [
+        UsersControllerV2(),
+        FriendshipsControllerV2(),
+        ChatsControllerV2(),
+        MessagesControllerV2(),
+        RefreshTokenControllerV2()
+    ]
     
-    let chatsControllerV2 = ChatsControllerV2()
-    try router.register(collection: chatsControllerV2)
-    
-    let friendshipsControllerV2 = FriendshipsControllerV2()
-    try router.register(collection: friendshipsControllerV2)
-    
-    let refreshTokenControllerV2 = RefreshTokenControllerV2()
-    try router.register(collection: refreshTokenControllerV2)
+    func registerRoutes(_ router: Router, version: LingoChatVersion) throws {
+        do {
+            switch version {
+            case .v1:
+                try LingoChatRouter.v1Routes.forEach { try router.register(collection: $0) }
+            case .v2:
+                try LingoChatRouter.v2Routes.forEach { try router.register(collection: $0) }
+            }
+        } catch {
+            throw error
+        }
+    }
 }

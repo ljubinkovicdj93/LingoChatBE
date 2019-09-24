@@ -25,6 +25,11 @@ struct UsersControllerV2: RouteCollection {
         let basicAuthGroup = usersRoute.grouped(basicAuthMiddleware)
         
         basicAuthGroup.post("login", use: loginHandler)
+        
+        let protected = usersRoute.grouped(JWTMiddleware())
+        
+        protected.put(UserUpdateData.self, use: updateHandler)
+        protected.delete(use: deleteHandler)
     }
     
     func loginHandler(_ req: Request) throws -> Future<AccessDTO> {
@@ -67,5 +72,23 @@ struct UsersControllerV2: RouteCollection {
     
     func getHandler(_ req: Request) throws -> Future<User.Public> {
         return try req.parameters.next(User.self).public
+    }
+    
+    func updateHandler(_ req: Request, data: UserUpdateData) throws -> Future<HTTPStatus> {
+        return try req.authorizedUser().flatMap(to: HTTPStatus.self) { authenticatedUser in
+            authenticatedUser.firstName = data.firstName
+            authenticatedUser.lastName = data.lastName
+            authenticatedUser.username = data.username
+            authenticatedUser.email = data.email
+            authenticatedUser.password = data.password
+            
+            return authenticatedUser.update(on: req).transform(to: .ok)
+        }
+    }
+    
+    func deleteHandler(_ req: Request) throws -> Future<HTTPStatus> {
+        return try req.authorizedUser().flatMap(to: HTTPStatus.self) { authenticatedUser in
+            return authenticatedUser.delete(on: req).transform(to: .noContent)
+        }
     }
 }
