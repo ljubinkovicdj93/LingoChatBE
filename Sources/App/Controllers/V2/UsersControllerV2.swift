@@ -48,9 +48,13 @@ struct UsersControllerV2: RouteCollection {
     private func createJWT(_ req: Request, from user: User, secret: String = "secret") throws -> Future<AccessDTO> {
         let accessToken = try TokenHelpers.createAccessToken(from: user)
         let expiredAt = try TokenHelpers.expiredDate(of: accessToken)
-        let accessDto = AccessDTO(accessToken: accessToken, expiredAt: expiredAt)
+        let refreshToken = TokenHelpers.createRefreshToken()
         
-        return req.future(accessDto)
+        let accessDto = AccessDTO(refreshToken: refreshToken, accessToken: accessToken, expiredAt: expiredAt)
+        
+        return RefreshToken(token: refreshToken, userID: try user.requireID())
+            .save(on: req)
+            .transform(to: accessDto)
     }
     
     func getAllHandler(_ req: Request) throws -> Future<[User.Public]> {

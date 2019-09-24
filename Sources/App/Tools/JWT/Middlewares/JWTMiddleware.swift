@@ -23,9 +23,8 @@ final class JWTMiddleware: Middleware {
             try TokenHelpers.verifyToken(token)
             
             return try next.respond(to: request)
-        } catch {
-            let reason = "ERROR_JWT_MIDDLEWARE: \(error.localizedDescription)"
-            throw Abort(.unauthorized, reason: reason)
+        } catch let error as JWTError {
+            throw Abort(.unauthorized, reason: error.localizedDescription)
         }
     }
 }

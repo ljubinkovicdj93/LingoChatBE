@@ -205,3 +205,10 @@ extension User: JWTPayload {
         // Nothing to verify since our payload doesn't include any claims.
     }
 }
+
+// MARK: - Refresh Token
+extension User {
+    var refreshTokens: Children<User, RefreshToken> {
+        return self.children(\.userID)
+    }
+}

@@ -5,6 +5,7 @@
 //  Created by Dorde Ljubinkovic on 9/24/19.
 //
 
+import Vapor
 import JWT
 
 struct AccessTokenPayload: JWTPayload {

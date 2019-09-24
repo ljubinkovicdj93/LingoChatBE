@@ -22,4 +22,7 @@ public func routes(_ router: Router) throws {
     
     let friendshipsControllerV2 = FriendshipsControllerV2()
     try router.register(collection: friendshipsControllerV2)
+    
+    let refreshTokenControllerV2 = RefreshTokenControllerV2()
+    try router.register(collection: refreshTokenControllerV2)
 }

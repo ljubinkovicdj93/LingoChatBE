@@ -64,4 +64,9 @@ class TokenHelpers {
             throw JWTError.verificationFailed
         }
     }
+    
+    /// Generate new Refresh Token
+    class func createRefreshToken() -> String {
+        return UUID().uuidString
+    }
 }
