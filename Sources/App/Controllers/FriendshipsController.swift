@@ -12,7 +12,11 @@ struct FriendshipsController: RouteCollection {
     func boot(router: Router) throws {
         let friendshipRoutes = router.grouped("api", "friendships")
         
-        friendshipRoutes.get(use: getAllFriendshipsHandler)
+        friendshipRoutes.group(JWTMiddleware.self) { jwtGroup in
+            jwtGroup.get(use: getAllFriendshipsHandler)
+        }
+        
+//        friendshipRoutes.get(use: getAllFriendshipsHandler)
         
         friendshipRoutes.delete(FriendshipPivot.parameter, use: deleteFriendshipHandler)
     }
