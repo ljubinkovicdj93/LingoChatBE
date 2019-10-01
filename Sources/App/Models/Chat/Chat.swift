@@ -41,46 +41,52 @@ extension Chat {
         return siblings()
     }
     
-    static func addChat(_ name: String,
-                        to user: User,
-                        on req: Request) throws -> Future<Void> {
-        return Chat
-            .query(on: req)
-            .filter(\.name == name)
-            .first()
-            .flatMap(to: Void.self) { foundChat in
-                if let existingChat = foundChat {
-                    return user.chats
-                        .attach(existingChat, on: req)
-                        .transform(to: ())
-                } else {
-                    let chat = Chat(name: name)
-                    
-                    return chat.save(on: req).flatMap(to: Void.self) { newChat in
-                        return user.chats
-                            .attach(newChat, on: req)
-                            .transform(to: ())
-                    }
-                }
-        }
-    }
+//    static func addChat(_ name: String,
+//                        to user: User,
+//                        on req: Request) throws -> Future<Void> {
+//        return Chat
+//            .query(on: req)
+//            .filter(\.name == name)
+//            .first()
+//            .flatMap(to: Void.self) { foundChat in
+//                if let existingChat = foundChat {
+//                    return user.chats
+//                        .attach(existingChat, on: req)
+//                        .transform(to: ())
+//                } else {
+//                    let chat = Chat(name: name)
+//                    
+//                    return chat.save(on: req).flatMap(to: Void.self) { newChat in
+//                        return user.chats
+//                            .attach(newChat, on: req)
+//                            .transform(to: ())
+//                    }
+//                }
+//        }
+//    }
 }
 
 struct ChatCreateData: Content {
     let name: String?
-    let users: [User.Public] // Array of Users
+    let participants: [User.Public] // Array of Users
     
-    init(name: String = "", users: [User.Public]) {
+    init(name: String = "", participants: [User.Public]) {
         self.name = name
-        self.users = users
+        self.participants = participants
     }
+}
+
+struct ChatDTO: Content {
+    let chat: Chat
+    let participants: [User.Public]?
+    let lastMessage: String?
 }
 
 extension ChatCreateData: Validatable, Reflectable {
     static func validations() throws -> Validations<ChatCreateData> {
         var validations = Validations(ChatCreateData.self)
         
-        try validations.add(\.users, !.empty)
+        try validations.add(\.participants, !.empty)
         
         return validations
     }

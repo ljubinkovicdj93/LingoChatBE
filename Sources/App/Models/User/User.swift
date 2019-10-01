@@ -83,6 +83,16 @@ extension User: Migration {
     }
 }
 
+// MARK: - Parent-Child relationship (one-to-many)
+
+// MARK: Refresh Token
+extension User {
+    var refreshTokens: Children<User, RefreshToken> {
+        return self.children(\.userID)
+    }
+}
+
+
 // MARK: - Sibling relationship (many-to-many)
 extension User {
     var chats: Siblings<User, Chat, UserChatPivot> {
@@ -93,22 +103,37 @@ extension User {
         return siblings(FriendshipPivot.leftIDKey, FriendshipPivot.rightIDKey)
     }
     
-    static func addUser(_ userId: UUID,
+    /// Creates a connection in UserChatPivot.
+    static func addUser(userId: UUID,
                         to chat: Chat,
+                        participantId: UUID,
                         on req: Request) throws -> Future<Void> {
-        return User
-            .query(on: req)
-            .filter(\.id == userId)
-            .first()
-            .flatMap(to: Void.self) { foundUser in
-                if let existingUser = foundUser {
-                    return chat.users
-                        .attach(existingUser, on: req)
-                        .transform(to: ())
-                } else {
-                    throw Abort(.internalServerError)
-                }
+        guard
+            let chatCreator = try User.find(userId, on: req).wait(),
+            let chatParticipant = try User.find(participantId, on: req).wait()
+        else {
+            throw Abort(.internalServerError, reason: "Either the chat creator or the chat participant doesn't exist!")
         }
+        
+        return try UserChatPivot(user: chatCreator,
+                                 chat: chat,
+                                 participant: chatParticipant)
+        .save(on: req)
+        .transform(to: ())
+        
+//        return User
+//            .query(on: req)
+//            .filter(\.id == userId)
+//            .first()
+//            .flatMap(to: Void.self) { foundUser in
+//                if let existingUser = foundUser {
+//                    return chat.users
+//                        .attach(existingUser, on: req)
+//                        .transform(to: ())
+//                } else {
+//                    throw Abort(.internalServerError)
+//                }
+//        }
     }
 }
 
@@ -204,4 +229,12 @@ extension User: JWTPayload {
     func verify(using signer: JWTSigner) throws {
         // Nothing to verify since our payload doesn't include any claims.
     }
+}
+
+struct UserUpdateData: Content {
+    let firstName: String
+    let lastName: String
+    let username: String
+    let email: String
+    let password: String
 }
