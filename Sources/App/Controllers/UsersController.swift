@@ -145,8 +145,8 @@ struct UsersController: RouteCollection {
                     //                if data.users.isEmpty { // If we talk to ourselves...
                     //                    chat = Chat(name: user.public.fullName)
                     //                }
-                    if data.users.count == 1 { // If it is an 1-1 chat.
-                        chat = Chat(name: data.users[0].fullName)
+                    if data.participants.count == 1 { // If it is an 1-1 chat.
+                        chat = Chat(name: data.participants[0].fullName)
                     } else { // If it is a group chat.
                         guard let chatName = data.name else { throw BasicValidationError("Must provide `name` when creating a chat with more than 2 users.") }
                         guard !chatName.isEmpty else { throw BasicValidationError("Chat name must NOT be empty!") }
@@ -154,15 +154,15 @@ struct UsersController: RouteCollection {
                         chat = Chat(name: chatName)
                     }
                     
-                    try userSaves.append(User.addUser(id, to: chat, on: req))
+//                    try userSaves.append(User.addUser(id, to: chat, participantId: <#UUID#>, on: req))
                     return chat.save(on: req)
                 }
                 .flatMap { (chat: Chat) -> Future<Void> in
                     currentChatId = chat.id
                     
-                    for user in data.users {
-                        guard let id = user.id else { throw Abort(.internalServerError) }
-                        try userSaves.append(User.addUser(id, to: chat, on: req))
+                    for user in data.participants {
+                        guard let participantId = user.id else { throw Abort(.internalServerError) }
+                        try userSaves.append(User.addUser(userId: currentUserId!, to: chat, participantId: participantId, on: req))
                     }
                     
                     // Flattens the array to complete ALL the Fluent operations and transforms the result to an HTTP status code.
@@ -176,7 +176,7 @@ struct UsersController: RouteCollection {
                         .all()
                         .flatMap(to: HTTPStatus.self) { (friendships: [FriendshipPivot]) -> Future<HTTPStatus> in
                             guard let currUserID = currentUserId else { throw Abort(.internalServerError) }
-                            let chatParticipantIds = data.users.compactMap { $0.id }
+                            let chatParticipantIds = data.participants.compactMap { $0.id }
                             
                             for friendship in friendships {
                                 let friendId: UUID

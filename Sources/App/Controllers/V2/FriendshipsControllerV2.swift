@@ -97,11 +97,26 @@ struct FriendshipsControllerV2: RouteCollection {
         }
     }
     
-    func getAllFriendshipsHandler(_ req: Request) throws -> Future<[FriendshipPivot]> {
-        return FriendshipPivot
-            .query(on: req)
-            .filter(\.chatId, .isNot, nil)
-            .all()
+    //    [
+    //      {
+    //        "friend": {
+    //          "id": "59A6983F-6EC6-49DE-A9F2-17253843ED47",
+    //          "firstName": "Djordje",
+    //          "lastName": "Ljubinkovic",
+    //          "username": "djole-lj"
+    //        },
+    //        "status": 0
+    //      }
+    //    ]
+    #warning("TODO: Figure out how to return the above, instead of just users")
+    func getAllFriendshipsHandler(_ req: Request) throws -> Future<[User.Public]> {
+        return try req.authorizedUser().flatMap(to: [User.Public].self) { authenticatedUser in
+            return try authenticatedUser
+                .friends
+                .query(on: req)
+                .decode(data: User.Public.self)
+                .all()
+        }
     }
     
     func deleteFriendshipHandler(_ req: Request) throws -> Future<HTTPStatus> {
@@ -115,5 +130,6 @@ struct FriendshipsControllerV2: RouteCollection {
 
 struct FriendDTOV2: Content {
     let friend: User.Public?
+    let status: Int // 0 -> pending, 1 -> friend
     let chatId: Chat.ID?
 }
