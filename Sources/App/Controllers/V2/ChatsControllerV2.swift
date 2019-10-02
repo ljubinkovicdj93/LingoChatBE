@@ -25,22 +25,22 @@ struct ChatsControllerV2: RouteCollection {
     }
     
     /*
-         [
-             {
-                 "id": "A35A5ABE-2B6C-4A8C-B747-81EAC1401AAF",
-                 "name": "First chat in the history of LingoChat",
-                 "participants": [
-             {
-                 "id": "59A6983F-6EC6-49DE-A9F2-17253843ED47",
-                 "firstName": "Djordje",
-                 "lastName": "Ljubinkovic",
-                 "username": "djole-lj"
-             }
-             ],
-             "lastMessage": "It was a good day.",
-             "createdAt": 1568960152.39124
-             }
-         ]
+     [
+     {
+     "id": "A35A5ABE-2B6C-4A8C-B747-81EAC1401AAF",
+     "name": "First chat in the history of LingoChat",
+     "participants": [
+     {
+     "id": "59A6983F-6EC6-49DE-A9F2-17253843ED47",
+     "firstName": "Djordje",
+     "lastName": "Ljubinkovic",
+     "username": "djole-lj"
+     }
+     ],
+     "lastMessage": "It was a good day.",
+     "createdAt": 1568960152.39124
+     }
+     ]
      */
     func getUserChatsHandler(_ req: Request) throws -> Future<[ChatDTO]> {
         return try req.authorizedUser().flatMap(to: [ChatDTO].self) { authenticatedUser in
@@ -57,44 +57,74 @@ struct ChatsControllerV2: RouteCollection {
                     queryBuilder
                         .filter(\.userId, .equal, currentUserId)
                         .filter(\.participantId, .equal, currentUserId)
-            }
-            .all()
-            .map(to: [ChatDTO].self) {
-                // Ensure UserChatPivot table is not empty.
-                guard !$0.isEmpty else { return [] }
-                let sortedUserChats = $0.sorted { $0.chatId.uuidString < $1.chatId.uuidString }
-                
-                var prevChatId: Chat.ID = sortedUserChats.first!.chatId
-                guard var prevChat: Chat = try Chat.find(prevChatId, on: req).wait() else { throw Abort(.internalServerError, reason: "Chat with \(prevChatId) doesn't exist!") }
-                
-                var chats2D: [[ChatDTO]] = []
-                var participantList: [User.Public] = []
-                
-                var chatsDtoList: [ChatDTO] = []
-                
-                for uc in sortedUserChats {
-                    let participantId = currentUserId == uc.userId ? uc.participantId : uc.userId
-                    
-                    if prevChatId == uc.chatId {
-                        if let foundUser = try User.find(participantId, on: req).wait() {
-                            participantList.append(foundUser.public)
-                        }
-                    } else {
-                        chatsDtoList.append(ChatDTO(chat: prevChat,
-                                                    participants: participantList,
-                                                    lastMessage: "Ovo je test poruka. Promenicu cim provalim kako da iscupam `lastMessage` iz baze a da je pritom ne unistim koliko su mi dugacki je*eni query-ji :)"))
-                        chats2D.append(chatsDtoList)
-                        
-                        prevChatId = uc.chatId
-                        guard let foundChat = try Chat.find(prevChatId, on: req).wait() else { throw Abort(.internalServerError, reason: "Chat with \(prevChatId) doesn't exist!") }
-                        prevChat = foundChat
-                    }
                 }
-                
-                let allChats = chats2D.flatMap { $0 }
-                
-                return allChats
-            }
+                .sort(\.chatId, .ascending)
+                .all()
+                .flatMap(to: [ChatDTO].self) { userChats in
+                    if userChats.isEmpty { return req.future([]) }
+                    
+                    /*
+                         creator |   chat  | participant
+                         –––––––––––––––––––––––––––––––
+                         djole   |  chat1  | stefan
+                         djole   |  chat1  | filip
+                         ana     |  chat2  | djole
+                     **/
+
+                    var futureChatFetches: [Future<Chat?>] = []
+                    
+                    var userFetches: [Future<User?>] = []
+                    var userChatFetches: [Chat.ID: [Future<User?>]] = [:]
+                    
+                    var prevChatId = userChats.first!.chatId
+                    
+                    for uc in userChats {
+                        let participantId = currentUserId == uc.userId ? uc.participantId : uc.userId
+                        
+                        if prevChatId == uc.chatId {
+                            userFetches.append(User.find(participantId, on: req))
+                            userChatFetches[prevChatId] = userFetches
+                        } else {
+                            futureChatFetches.append(Chat.find(prevChatId, on: req))
+                            
+                            prevChatId = uc.chatId
+                            userFetches = []
+                            
+                            userFetches.append(User.find(participantId, on: req))
+                            userChatFetches[prevChatId] = userFetches
+                        }
+                    }
+                    
+                    var chatDtoFetches: [Future<ChatDTO>] = []
+                    
+                    for (chatId, _) in userChatFetches {
+                        var chatDtos: [ChatDTO] = []
+                        
+                        let individualChatDtoFetch = Chat.find(chatId, on: req).flatMap(to: ChatDTO.self) { foundChat in
+                            guard
+                                let chat = foundChat,
+                                let foundChatId = chat.id
+                            else { throw Abort(.internalServerError) }
+                            
+                            guard let ucIndex = userChatFetches.firstIndex(where: { $0.key == foundChatId }) else { throw Abort(.internalServerError) }
+                            
+                            return userChatFetches[ucIndex].value
+                                .flatten(on: req)
+                                .map(to: ChatDTO.self) { chatParticipants in
+                                    let participants = chatParticipants.compactMap { $0?.public }
+                                    
+                                    let chatDTO = ChatDTO(chat: chat, participants: participants, lastMessage: "Test msg...")
+                                    chatDtos.append(chatDTO)
+                                    
+                                    return chatDTO
+                                }
+                        }
+                        
+                        chatDtoFetches.append(individualChatDtoFetch)
+                    }
+                    
+                    return chatDtoFetches.flatten(on: req)
+                }
         }
     }
 }

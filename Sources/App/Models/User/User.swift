@@ -108,32 +108,23 @@ extension User {
                         to chat: Chat,
                         participantId: UUID,
                         on req: Request) throws -> Future<Void> {
-        guard
-            let chatCreator = try User.find(userId, on: req).wait(),
-            let chatParticipant = try User.find(participantId, on: req).wait()
-        else {
-            throw Abort(.internalServerError, reason: "Either the chat creator or the chat participant doesn't exist!")
+        return flatMap(to: Void.self,
+                       User.find(userId, on: req),
+                       User.find(participantId, on: req)) { currentUser, participantUser in
+                        
+                        guard
+                            let chatCreator = currentUser,
+                            let chatParticipant = participantUser
+                            else {
+                                throw Abort(.internalServerError, reason: "Either the chat creator or the chat participant doesn't exist!")
+                        }
+                        
+                        return try UserChatPivot(user: chatCreator,
+                                                 chat: chat,
+                                                 participant: chatParticipant)
+                            .save(on: req)
+                            .transform(to: ())
         }
-        
-        return try UserChatPivot(user: chatCreator,
-                                 chat: chat,
-                                 participant: chatParticipant)
-        .save(on: req)
-        .transform(to: ())
-        
-//        return User
-//            .query(on: req)
-//            .filter(\.id == userId)
-//            .first()
-//            .flatMap(to: Void.self) { foundUser in
-//                if let existingUser = foundUser {
-//                    return chat.users
-//                        .attach(existingUser, on: req)
-//                        .transform(to: ())
-//                } else {
-//                    throw Abort(.internalServerError)
-//                }
-//        }
     }
 }
 

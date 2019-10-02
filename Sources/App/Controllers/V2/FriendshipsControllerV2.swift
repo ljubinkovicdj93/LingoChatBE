@@ -48,6 +48,7 @@ struct FriendshipsControllerV2: RouteCollection {
         }
     }
     
+    #warning("TODO: BUG HERE!!!")
     func updateHandler(_ req: Request, data: FriendRequestUpdateData) throws -> Future<Response> {
         do {
             try data.validate()
@@ -109,14 +110,58 @@ struct FriendshipsControllerV2: RouteCollection {
     //      }
     //    ]
     #warning("TODO: Figure out how to return the above, instead of just users")
-    func getAllFriendshipsHandler(_ req: Request) throws -> Future<[User.Public]> {
-        return try req.authorizedUser().flatMap(to: [User.Public].self) { authenticatedUser in
-            return try authenticatedUser
-                .friends
+//    func getAllFriendshipsHandler(_ req: Request) throws -> Future<[User.Public]> {
+    func getAllFriendshipsHandler(_ req: Request) throws -> Future<[FriendDTOV2]> {
+        return try req.authorizedUser().flatMap(to: [FriendDTOV2].self) { authenticatedUser in
+            guard let id = authenticatedUser.id else { throw Abort(.internalServerError) }
+            return FriendshipPivot
                 .query(on: req)
-                .decode(data: User.Public.self)
+                .group(.or) { queryBuilder in
+                    queryBuilder
+                        .filter(\.senderId, .equal, id)
+                        .filter(\.receiverId, .equal, id)
+                }
                 .all()
+                /*
+                     senderId | status | receiverId
+                     ––––––––––––––––––––––––––––––
+                     djole    |    0   | ana
+                     stefan   |    1   | djole
+                     filip    |    0   | djole
+                 
+                 
+                    0: filip, ana
+                    1: stefan
+                 */
+                .flatMap(to: [FriendDTOV2].self) { friendships in
+                    guard !friendships.isEmpty else { return req.future([]) }
+                    
+                    var friendFetches: [Future<FriendDTOV2>] = []
+                    
+                    for fr in friendships {
+                        let friendId = id == fr.senderId ? fr.receiverId : fr.senderId
+                        
+                        let friendDtoFetch = User.find(friendId, on: req).map(to: FriendDTOV2.self) { foundUser in
+                            guard let existingFriend = foundUser else { throw Abort(.internalServerError, reason: "User with \(friendId) doesn't exist!") }
+                            
+                            #warning("TODO: CHAT ID MUST EXIST IF THERE IS A CHAT BETWEEN USERS!")
+                            return FriendDTOV2(friend: existingFriend.public, status: fr.status.rawValue, chatId: nil)
+                        }
+                        
+                        friendFetches.append(friendDtoFetch)
+                    }
+                    
+                    return friendFetches.flatten(on: req)
+                }
         }
+        
+//        return try req.authorizedUser().flatMap(to: [User.Public].self) { authenticatedUser in
+//            return try authenticatedUser
+//                .friends
+//                .query(on: req)
+//                .decode(data: User.Public.self)
+//                .all()
+//        }
     }
     
     func deleteFriendshipHandler(_ req: Request) throws -> Future<HTTPStatus> {
