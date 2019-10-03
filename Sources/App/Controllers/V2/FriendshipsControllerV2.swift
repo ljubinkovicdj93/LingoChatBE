@@ -84,7 +84,7 @@ struct FriendshipsControllerV2: RouteCollection {
                                 try response.content.encode(foundFriendshipRequest)
                                 return foundFriendshipRequest.save(on: req).transform(to: response)
                             case .declined:
-                                response.http.status = .noContent
+                                response.http.status = .ok
                                 return foundFriendshipRequest.delete(on: req).transform(to: response)
                             default:
                                 throw BasicValidationError("Has to have a status of either:\n-1 (declined)\n1 (accepted)")

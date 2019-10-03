@@ -18,7 +18,10 @@ extension Request {
     }
     
     func authorizedUser() throws -> Future<User> {
-        let userID = try TokenHelpers.getUserID(fromPayloadOf: self.token)
+//        let userID = try TokenHelpers.getUserID(fromPayloadOf: self.token)
+        guard let userID = try TokenHelpers.getUser(fromPayloadOf: self.token).id else {
+            throw JWTError.payloadCreation
+        }
         
         return User.find(userID, on: self).unwrap(or: Abort(.unauthorized, reason: "Authorized user not found"))
     }

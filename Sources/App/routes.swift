@@ -29,7 +29,7 @@ struct LingoChatRouter {
         FriendshipsControllerV2(),
         ChatsControllerV2(),
         MessagesControllerV2(),
-        RefreshTokenControllerV2()
+        AccountControllerV2()
     ]
     
     func registerRoutes(_ router: Router, version: LingoChatVersion) throws {

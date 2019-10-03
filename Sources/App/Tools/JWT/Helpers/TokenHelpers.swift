@@ -11,13 +11,14 @@ class TokenHelpers {
     
     /// Create payload for Access Token
     fileprivate class func createPayload(from user: User) throws -> AccessTokenPayload {
-        if let id = user.id {
-            let payload = AccessTokenPayload(userID: id)
-            
-            return payload
-        } else {
-            throw JWTError.payloadCreation
-        }
+        return AccessTokenPayload(user: user.public)
+//        if let id = user.id {
+//            let payload = AccessTokenPayload(userID: id)
+//
+//            return payload
+//        } else {
+//            throw JWTError.payloadCreation
+//        }
     }
     
     /// Create Access Token for user
@@ -54,12 +55,13 @@ class TokenHelpers {
     }
     
     /// Get user ID from token
-    class func getUserID(fromPayloadOf token: String) throws -> User.ID {
+//    class func getUserID(fromPayloadOf token: String) throws -> User.ID {
+    class func getUser(fromPayloadOf token: String) throws -> User.Public {
         do {
             let receivedJWT = try JWT<AccessTokenPayload>(from: token, verifiedUsing: JWTConfig.signer)
             let payload = receivedJWT.payload
             
-            return payload.userID
+            return payload.user
         } catch {
             throw JWTError.verificationFailed
         }
