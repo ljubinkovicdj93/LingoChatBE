@@ -155,8 +155,8 @@ func getChatMessagesHandler(_ req: Request) throws -> Future<[Message]> {
     }
 }
 
-func createHandler(_ req: Request, data: ChatCreateData) throws -> Future<HTTPStatus> {
-    return try req.authorizedUser().flatMap(to: HTTPStatus.self) { authenticatedUser in
+func createHandler(_ req: Request, data: ChatCreateData) throws -> Future<Chat> {
+    return try req.authorizedUser().flatMap(to: Chat.self) { authenticatedUser in
         do {
             try data.validate()
             
@@ -197,12 +197,12 @@ func createHandler(_ req: Request, data: ChatCreateData) throws -> Future<HTTPSt
                 // return userSaves.flatten(on: req).transform(to: .created)
                 return userSaves.flatten(on: req)
             }
-            .flatMap(to: HTTPStatus.self) { _ in
+            .flatMap(to: Chat.self) { _ in
                 return FriendshipPivot
                     .query(on: req)
                     .filter(\.status, .equal, .approved)
                     .all()
-                    .flatMap(to: HTTPStatus.self) { (friendships: [FriendshipPivot]) -> Future<HTTPStatus> in
+                    .flatMap(to: Chat.self) { (friendships: [FriendshipPivot]) -> Future<Chat> in
                         guard let currUserID = currentUserId else { throw Abort(.internalServerError, reason: "Missing user (chat creator) ID!") }
                         let chatParticipantIds = data.participants.compactMap { $0.id }
                         
@@ -225,9 +225,10 @@ func createHandler(_ req: Request, data: ChatCreateData) throws -> Future<HTTPSt
                             friendshipPivotUpdates.append(FriendshipPivot.query(on: req).update(friendship))
                         }
                         
-                        return friendshipPivotUpdates.flatten(on: req).transform(to: .created)
+//                        return friendshipPivotUpdates.flatten(on: req).transform(to: .created)
+                        return req.future(chat)
+                    }
                 }
-            }
         } catch {
             print(error.localizedDescription)
             throw error
